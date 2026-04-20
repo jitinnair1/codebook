@@ -8,7 +8,7 @@ and how functions could be passed to other functions. Let's look under the hood 
 In OCaml, when you write something like:
 
 ```ocaml
-let sum x y = x + y;;
+let sum x y = x + y
 ```
 Here, technically, `sum` is not a function that takes two arguments. It builds up like this: When you call `sum 1 2`, what actually happens is, `sum 1` returns a new function that adds 1 to its argument.
 
@@ -29,12 +29,12 @@ Well, this idea, called partial application can be useful in creating specialise
 If we already had `add` and `multiply` functions, we could we could create specialised functions by partail application like this:
 
 ```ocaml
-let add x y = x + y;;
-let multiply x y = x * y;;
+let add x y = x + y
+let multiply x y = x * y
 
 (* now we can create specialized functions *)
-let add_five = add 5;;
-let multiply_by_two = multiply 2;;
+let add_five = add 5
+let multiply_by_two = multiply 2
 ```
 Notice how although `add` requires two arguments, we can define `add_five` as a derived function of add but it just adds 5 to its input.
 

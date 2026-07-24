@@ -11,24 +11,22 @@
     "strict": true,
     "noImplicitAny": true,
     "noEmit": true,
-    "noFallthroughCasesInSwitch": true, //forces explicit exit in switch
+    "noFallthroughCasesInSwitch": true,
     /* module resolution options */
     "moduleResolution": "bundler",
-    "moduleDetection": "force", //so that TS treats files as modules even without import/export
+    "moduleDetection": "force",
     "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     /* other options */
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    /* bun-specific */
     "types": [
-      "bun-types"
+      "@types/node"
     ]
   },
   "include": [
     "src/**/*",
-    "dev.ts",
-    "server.ts",
+    "vite.config.ts",
     "scripts/**/*"
   ]
 }

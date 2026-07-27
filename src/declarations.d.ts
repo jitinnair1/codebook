@@ -12,3 +12,5 @@ declare module "*.ml" {
     const value: string;
     export default value;
 }
+
+declare module "*.css";

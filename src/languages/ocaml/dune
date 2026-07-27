@@ -1,5 +1,5 @@
 (executable
- (name sowar_toplevel)
+ (name toplevel)
  (modes js)
  (libraries
    ;js_of_ocaml

@@ -1,4 +1,5 @@
 //src/main.ts
+import './input.css';
 import { store } from './core/store';
 import { exercises, curriculum } from './exercises/registry';
 import { initEditor, getCode, updateEditorTheme } from './core/editor';

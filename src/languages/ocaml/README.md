@@ -27,7 +27,7 @@ dune build
 and copt the built file to `public`
 
 ```bash
-cp _build/default/sowar_toplevel.bc.js public/sowar_toplevel.bc.js
+cp _build/default/toplevel.bc.js ./toplevel.bc.js
 ```
 
 NOTE: If you run into eval `Unbound module` errors, it could be you've not run

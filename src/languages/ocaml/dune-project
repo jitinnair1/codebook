@@ -1,6 +1,6 @@
 (lang dune 3.20)
 
-(name sowar_toplevel)
+(name toplevel)
 
 (generate_opam_files true)
 
@@ -11,7 +11,7 @@
 (maintainers "Maintainer Name <maintainer@example.com>")
 
 (package
-(name sowar_toplevel)
+(name toplevel)
 (allow_empty)
  (synopsis "Browser-based OCaml exercises")
  (license MIT)

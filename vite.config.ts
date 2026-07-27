@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
-import { readFileSync } from "node:fs";
+import { readFileSync, copyFileSync } from "node:fs";
 import { parse } from "toml";
-import { resolve, relative } from "node:path";
+import { resolve } from "node:path";
+import tailwindcss from "@tailwindcss/vite";
 
 const buildDate = new Date().toLocaleDateString(undefined, {
   year: "numeric",
@@ -74,19 +75,65 @@ function tomlPlugin(): Plugin {
   };
 }
 
+function copyToplevelPlugin(): Plugin {
+  return {
+    name: "copy-toplevel",
+    closeBundle() {
+      const src = resolve(__dirname, "src/languages/ocaml/toplevel.bc.js");
+      const destDir = resolve(__dirname, "dist");
+      const dest = resolve(destDir, "sowar_toplevel.bc.js");
+      const fs = require("node:fs");
+      fs.mkdirSync(destDir, { recursive: true });
+      copyFileSync(src, dest);
+    },
+  };
+}
+
+function htmlMetaPlugin(): Plugin {
+  return {
+    name: "vite-html-meta",
+    transformIndexHtml(html) {
+      try {
+        const tomlContent = readFileSync(resolve(__dirname, "site.toml"), "utf-8");
+        const siteConfig = parse(tomlContent);
+        const { headline, description, keywords, og_image } = siteConfig;
+
+        let res = html;
+        if (headline) {
+          res = res.replace(/<title>.*<\/title>/, `<title>${headline}</title>`);
+          res = res.replace("</head>", `  <meta property="og:title" content="${headline}">\n</head>`);
+        }
+        if (description) {
+          res = res.replace("</head>", `  <meta name="description" content="${description}">\n</head>`);
+          res = res.replace("</head>", `  <meta property="og:description" content="${description}">\n</head>`);
+        }
+        if (keywords) {
+          res = res.replace("</head>", `  <meta name="keywords" content="${keywords}">\n</head>`);
+        }
+        if (og_image) {
+          res = res.replace("</head>", `  <meta property="og:image" content="${og_image}">\n</head>`);
+          res = res.replace("</head>", `  <meta name="twitter:card" content="summary_large_image">\n</head>`);
+        }
+        return res;
+      } catch (e) {
+        console.error("[html-meta] Failed to inject meta tags from site.toml:", e);
+        return html;
+      }
+    },
+  };
+}
+
 export default defineConfig({
   root: ".",
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    rollupOptions: {
-      input: ["src/main.ts"],
-    },
+
     target: "esnext",
     minify: true,
   },
   define: {
     BUILD_DATE: JSON.stringify(buildDate),
   },
-  plugins: [rawTextPlugin(), tomlPlugin()],
+  plugins: [tailwindcss(), rawTextPlugin(), tomlPlugin(), copyToplevelPlugin(), htmlMetaPlugin()],
 });

@@ -6,8 +6,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "check": "tsgo --noEmit",
-    "build:ocaml-minify": "terser dist/sowar_toplevel.bc.js -o dist/sowar_toplevel.bc.js --compress --mangle",
-    "build": "npm run clean && npm run check && vite build && npm run build:ocaml-minify",
+    "build": "npm run clean && npm run check && vite build",
     "dev": "vite",
     "serve": "node server.mjs"
   },

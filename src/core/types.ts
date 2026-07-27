@@ -15,14 +15,29 @@ export interface Chapter {
 }
 
 export interface ExecutionResult {
-
     success: boolean;
     output: string;
     error?: string;
 }
 
+export type WorkerRequest = {
+    type: 'RUN';
+    id: string;
+    userCode: string;
+    testCode?: string;
+};
+
+export type WorkerResponse = {
+    type: 'RESULT';
+    id: string;
+    success: boolean;
+    output: string;
+    error?: string;
+};
+
 export interface CodeRunner {
     name: string;
     isReady(): Promise<boolean>;
     run(userCode: string, testCode?: string): Promise<ExecutionResult>;
+    terminate?(): void;
 }

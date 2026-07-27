@@ -75,20 +75,6 @@ function tomlPlugin(): Plugin {
   };
 }
 
-function copyToplevelPlugin(): Plugin {
-  return {
-    name: "copy-toplevel",
-    closeBundle() {
-      const src = resolve(__dirname, "src/languages/ocaml/toplevel.bc.js");
-      const destDir = resolve(__dirname, "dist");
-      const dest = resolve(destDir, "sowar_toplevel.bc.js");
-      const fs = require("node:fs");
-      fs.mkdirSync(destDir, { recursive: true });
-      copyFileSync(src, dest);
-    },
-  };
-}
-
 function htmlMetaPlugin(): Plugin {
   return {
     name: "vite-html-meta",
@@ -135,5 +121,5 @@ export default defineConfig({
   define: {
     BUILD_DATE: JSON.stringify(buildDate),
   },
-  plugins: [tailwindcss(), rawTextPlugin(), tomlPlugin(), copyToplevelPlugin(), htmlMetaPlugin()],
+  plugins: [tailwindcss(), rawTextPlugin(), tomlPlugin(), htmlMetaPlugin()],
 });

@@ -1,6 +1,7 @@
 title = "Sowar"
 subtitle = "OCaml Exercises"
 version = "v0.1"
+language = "ocaml"
 
 project_url = "https://github.com/jitinnair1/sowar"
 author_url = "https://github.com/jitinnair1"

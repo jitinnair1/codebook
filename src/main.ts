@@ -2,6 +2,7 @@
 import './input.css';
 import { store } from './core/store';
 import { exercises, curriculum } from './exercises/registry';
+import { getExerciseVariant } from './core/types';
 import { initEditor, getCode, updateEditorTheme } from './core/editor';
 import { configureMarkdown, parseMarkdown, highlightStaticBlocks } from './core/markdown';
 
@@ -22,6 +23,8 @@ import { resetEditorText } from './ui/resetEditorText';
 import { renderFooter } from './ui/footer';
 import { initShortcuts } from './ui/shortcuts';
 import { initResetProgress } from './ui/resetProgress';
+import { renderLanguageSelector } from './ui/languageSelector';
+import { getLanguageMetadata, getLanguageSyntax } from './languages/registry';
 
 //initialisation
 initBranding();
@@ -52,15 +55,29 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
     render();
 });
 
-
 //render
 let lastRenderedExerciseId: string | null = null;
+let lastRenderedLanguageId: string | null = null;
 
 function render() {
-    const { currentExerciseId, completedIds, userCode } = store.getState();
+    const { currentExerciseId, currentLanguageId, completedIds } = store.getState();
+
+    const isExerciseChanged = lastRenderedExerciseId !== null && currentExerciseId !== lastRenderedExerciseId;
+    const isLanguageChanged = lastRenderedLanguageId !== null && currentLanguageId !== lastRenderedLanguageId;
+
+    //if language or exercise changed, save state for previous config
+    if ((isExerciseChanged || isLanguageChanged) && lastRenderedExerciseId && lastRenderedLanguageId) {
+        const currentCode = getCode();
+        if (currentCode) {
+            store.getState().saveUserCode(lastRenderedExerciseId, lastRenderedLanguageId, currentCode);
+        }
+    }
+
     const currentEx = exercises.find(e => e.id === currentExerciseId);
 
     if (!currentEx) return;
+
+    const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
 
     //render description
     const descHtml = parseMarkdown(currentEx.description);
@@ -80,18 +97,25 @@ function render() {
     renderSidebar(elements.sidebar.list, curriculum, currentExerciseId, completedIds);
     renderProgressBar(elements.progressContainer, curriculum, currentExerciseId, completedIds);
 
+    //language selector
+    renderLanguageSelector(elements.languageSelectorContainer, currentEx);
+
+    const syntaxExtension = getLanguageSyntax(currentLanguageId);
+
     //initialize editor with user code
-    const editorText = userCode[currentExerciseId] || currentEx.initialCode;
-    initEditor(editorText, () => {
-        store.getState().saveUserCode(currentExerciseId, getCode());
+    const editorText = store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode;
+    initEditor(editorText, syntaxExtension, () => {
+        store.getState().saveUserCode(currentExerciseId, currentLanguageId, getCode());
         showPopup('Saved!');
     });
 
-    //reset console on exercise switch
-    if (currentExerciseId !== lastRenderedExerciseId) {
+    //reset console on exercise or language switch
+    if (isExerciseChanged || isLanguageChanged) {
         elements.console.textContent = "// Ready...";
-        lastRenderedExerciseId = currentExerciseId;
     }
+
+    lastRenderedExerciseId = currentExerciseId;
+    lastRenderedLanguageId = currentLanguageId;
 }
 
 
@@ -104,10 +128,11 @@ elements.runBtn.addEventListener('click', () => runner.run());
 //reset button
 if (elements.resetBtn) {
     resetEditorText(elements.resetBtn, ICONS.TRASH, () => {
-        const { currentExerciseId } = store.getState();
+        const { currentExerciseId, currentLanguageId } = store.getState();
         const currentEx = exercises.find(e => e.id === currentExerciseId);
         if (!currentEx) return;
-        store.getState().saveUserCode(currentExerciseId, currentEx.initialCode);
+        const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
+        store.getState().saveUserCode(currentExerciseId, currentLanguageId, exerciseVariant.initialCode);
     });
 }
 

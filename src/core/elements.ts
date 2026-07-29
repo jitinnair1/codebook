@@ -23,6 +23,7 @@ export const elements = {
     clearConsoleBtn: document.getElementById('clear-console-btn') as HTMLButtonElement,
     shortcutsBtn: document.getElementById('shortcuts-btn') as HTMLButtonElement,
     resetProgressBtn: document.getElementById('reset-progress-btn') as HTMLButtonElement,
+    languageSelectorContainer: document.getElementById('language-selector-container') as HTMLElement,
 
     //shortcuts modal
     shortcuts: {

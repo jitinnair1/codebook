@@ -1,6 +1,6 @@
 # Adding & Structuring Exercises
 
-Each exercise lives in a topic folder under `src/exercises/` (e.g. `hello_world/`). It contains a shared problem description (`problem.md`) and subdirectories for language variants. **No TypeScript code (`index.ts`) is required inside exercise folders.**
+Each exercise lives in a topic folder under `src/exercises/` (e.g. `hello_world/`). It contains a shared problem description (`problem.md`) and subdirectories for language variants.
 
 ---
 
@@ -24,7 +24,6 @@ src/exercises/hello_world/
 To add C or Python support to an existing exercise:
 1. Create a subfolder inside the exercise directory (e.g., `hello_world/c/`).
 2. Add `template.c` (initial user code) and `test.c` (test harness).
-3. **Done!** Sowar automatically discovers the variant—no code changes required!
 
 ---
 
@@ -59,7 +58,6 @@ drafts = [
   "recursion"
 ]
 
-# Entire draft chapters placed in [[draft]] are ignored automatically!
 [[draft]]
 title = "Intermediate Concepts"
 exercises = [
@@ -68,16 +66,16 @@ exercises = [
 ]
 ```
 
-- **Dynamic Auto-Numbering**: Exercise IDs (`1.1`, `1.2`, `2.1`) are assigned dynamically based on position in `curriculum.toml`. Reordering exercises or moving them between chapters takes 5 seconds without renaming folders on disk!
-- **Title Extraction**: Exercise titles are extracted automatically from the `# Title` heading inside `problem.md`.
 - **Draft Exercises**: Move unreleased exercises into `drafts = [...]` array under any chapter.
 - **Draft Chapters**: Place upcoming chapters in `[[draft]]` tables, these are ignore by default. Once finalised, just rename these to `[[chapter]]`.
 
 ---
 
-## ⚠️ Important Note on Language Dropdown Availability
+## NOTE
 
 > **Language availability is exercise-driven in the UI**:
 > Enabling a language in `site.toml` registers the compiler/runner site-wide. However, the UI Language Selector dropdown evaluates availability per exercise.
 >
 > If a language is enabled in `site.toml` (e.g. `c` or `python`), but an exercise directory does not contain a subfolder for that language (e.g. `hello_world/c/`), **the UI dropdown will NOT show or enable that language for that exercise**.
+
+TODO: Add reference here to README in languages directory and vice versa. Point to both as a comment in site config for reference when adding a new language

@@ -1,4 +1,4 @@
-import curriculumConfig from './curriculum.toml';
+import curriculumConfig from './curriculum.yaml';
 import { Exercise, Chapter, LanguageVariant } from '../core/types';
 
 // Discover all problem.md files dynamically
@@ -27,7 +27,7 @@ function generateId(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
-//extract title from problem.md (since we dont specify lesson titles in curriculum.toml)
+//extract title from problem.md (since we dont specify lesson titles in curriculum.yaml)
 function extractTitle(problemMd: string, folder: string): string {
   const match = problemMd.match(/^#\s+(.+)$/m);
   if (match && match[1]) {
@@ -40,7 +40,14 @@ function extractTitle(problemMd: string, folder: string): string {
 }
 
 const rawChapters: Array<{ title: string; id?: string; exercises?: string[] }> =
-  (curriculumConfig as any).chapter || (curriculumConfig as any).chapters || [];
+  curriculumConfig?.chapters && typeof curriculumConfig.chapters === 'object' && !Array.isArray(curriculumConfig.chapters)
+    ? Object.entries(curriculumConfig.chapters).map(([title, exercises]) => ({
+        title,
+        exercises: Array.isArray(exercises) ? (exercises as string[]) : []
+      }))
+    : Array.isArray(curriculumConfig)
+    ? curriculumConfig
+    : ((curriculumConfig as any)?.chapter || (curriculumConfig as any)?.chapters || []);
 
 export const curriculum: Chapter[] = rawChapters.map((ch, chapterIndex) => {
   const chapterId = ch.id || generateId(ch.title);

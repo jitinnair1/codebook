@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import { readFileSync, copyFileSync } from "node:fs";
 import { parse } from "toml";
+import { parse as parseYaml } from "yaml";
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -36,6 +37,38 @@ function rawTextPlugin(): Plugin {
         } catch (e) {
           console.error(`[raw-text] Failed to load ${realPath}:`, e);
           return `export default "";`;
+        }
+      }
+      return null;
+    },
+  };
+}
+
+function yamlPlugin(): Plugin {
+  const cache = new Map<string, string>();
+
+  return {
+    name: "vite-yaml-plugin",
+    enforce: "pre" as const,
+    async resolveId(source: string, importer: string | undefined) {
+      if ((!source.endsWith(".yaml") && !source.endsWith(".yml")) || !importer) return;
+      const resolved = await this.resolve(source, importer);
+      if (resolved) {
+        const virtualId = resolved.id + "\0__yaml__";
+        cache.set(virtualId, resolved.id);
+        return { id: virtualId, moduleSideEffects: true };
+      }
+    },
+    load(id: string) {
+      if (id.endsWith("__yaml__")) {
+        const realPath = cache.get(id) || id.replace(/\0__yaml__$/, "");
+        try {
+          const content = readFileSync(realPath, "utf-8");
+          const data = parseYaml(content);
+          return `export default ${JSON.stringify(data)};`;
+        } catch (e) {
+          console.error(`[yaml-plugin] Failed to load ${realPath}:`, e);
+          return `export default {};`;
         }
       }
       return null;
@@ -121,5 +154,5 @@ export default defineConfig({
   define: {
     BUILD_DATE: JSON.stringify(buildDate),
   },
-  plugins: [tailwindcss(), rawTextPlugin(), tomlPlugin(), htmlMetaPlugin()],
+  plugins: [tailwindcss(), rawTextPlugin(), yamlPlugin(), tomlPlugin(), htmlMetaPlugin()],
 });

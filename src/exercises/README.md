@@ -27,47 +27,34 @@ To add C or Python support to an existing exercise:
 
 ---
 
-## Registering & Ordering in Curriculum (`curriculum.toml`)
+## Registering & Ordering in Curriculum (`curriculum.yaml`)
 
-Curriculum ordering, chapters, active exercises, and drafts are defined in `src/exercises/curriculum.toml`.
+Curriculum ordering, chapters, active exercises, and drafts are defined in `src/exercises/curriculum.yaml`.
 
-```toml
-[[chapter]]
-title = "Basics"
-exercises = [
-  "hello_world",
-  "ints_vs_floats",
-  "functions",
-  "conditionals",
-  "tuples"
-]
-drafts = [
-  "lists",
-  "arrays",
-  "strings"
-]
+```yaml
+chapters:
+  "Basics":
+      - hello_world
+      - ints_vs_floats
+      - functions
+      - conditionals
+      - tuples
+      # - lists
+      # - arrays
+      # - strings
 
-[[chapter]]
-title = "Key Concepts"
-exercises = [
-  "currying"
-]
-drafts = [
-  "pure_functions",
-  "immutability",
-  "recursion"
-]
+  "Key Concepts":
+      - currying
+      # - pure_functions
+      # - immutability
+      # - side_effects
 
-[[draft]]
-title = "Intermediate Concepts"
-exercises = [
-  "memoization",
-  "tail_recursion"
-]
+  # "Intermediate Concepts"
+  #     - memoization
+  #     - tail_recursion
 ```
 
-- **Draft Exercises**: Move unreleased exercises into `drafts = [...]` array under any chapter.
-- **Draft Chapters**: Place upcoming chapters in `[[draft]]` tables, these are ignore by default. Once finalised, just rename these to `[[chapter]]`.
+- **Draft Exercises & Chapters**: Disable upcoming exercises or chapters by commenting them out with `#`. Un-comment when ready to release.
 
 ---
 

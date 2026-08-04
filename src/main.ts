@@ -62,14 +62,21 @@ let lastRenderedLanguageId: string | null = null;
 function render() {
     const { currentExerciseId, currentLanguageId, completedIds } = store.getState();
 
-    const isExerciseChanged = lastRenderedExerciseId !== null && currentExerciseId !== lastRenderedExerciseId;
-    const isLanguageChanged = lastRenderedLanguageId !== null && currentLanguageId !== lastRenderedLanguageId;
+    const prevExerciseId = lastRenderedExerciseId;
+    const prevLanguageId = lastRenderedLanguageId;
+
+    const isExerciseChanged = prevExerciseId !== null && currentExerciseId !== prevExerciseId;
+    const isLanguageChanged = prevLanguageId !== null && currentLanguageId !== prevLanguageId;
+
+    // Update tracking variables before any state mutation that triggers subscribers
+    lastRenderedExerciseId = currentExerciseId;
+    lastRenderedLanguageId = currentLanguageId;
 
     //if language or exercise changed, save state for previous config
-    if ((isExerciseChanged || isLanguageChanged) && lastRenderedExerciseId && lastRenderedLanguageId) {
+    if ((isExerciseChanged || isLanguageChanged) && prevExerciseId && prevLanguageId) {
         const currentCode = getCode();
         if (currentCode) {
-            store.getState().saveUserCode(lastRenderedExerciseId, lastRenderedLanguageId, currentCode);
+            store.getState().saveUserCode(prevExerciseId, prevLanguageId, currentCode);
         }
     }
 
@@ -113,9 +120,6 @@ function render() {
     if (isExerciseChanged || isLanguageChanged) {
         elements.console.textContent = "// Ready...";
     }
-
-    lastRenderedExerciseId = currentExerciseId;
-    lastRenderedLanguageId = currentLanguageId;
 }
 
 

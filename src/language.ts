@@ -1,16 +1,11 @@
-import siteConfig from '../site.toml';
+import { store } from './core/store';
+import { getLanguageRunner, defaultLanguageId } from './languages/registry';
 import type { CodeRunner } from './core/types';
 
-const adapters = import.meta.glob<{ runner?: CodeRunner; default?: CodeRunner; [key: string]: any }>('./languages/*/adapter.ts', { eager: true });
-
 export function getActiveRunner(): CodeRunner {
-    const lang = (siteConfig as any).language || 'ocaml';
-    const key = `./languages/${lang}/adapter.ts`;
-    const module = adapters[key];
-    if (!module) {
-        throw new Error(`Unsupported language configured in site.toml: ${lang}`);
-    }
-    return module.runner || module.default || Object.values(module)[0];
+    const { currentLanguageId } = store.getState();
+    const lang = currentLanguageId || defaultLanguageId;
+    return getLanguageRunner(lang);
 }
 
 export const activeRunner = getActiveRunner();

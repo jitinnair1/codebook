@@ -7,9 +7,9 @@ project_url = "https://github.com/jitinnair1/sowar"
 author_url = "https://github.com/jitinnair1"
 
 # if 'logo_image' (value is path to image) is provided (uncommented), it replaces the emoji with an <img> tag.
-logo_emoji = "🐪" 
+logo_emoji = "🐪"
 
-headline = "Sowar | OCaml exercises" 
+headline = "Sowar | OCaml exercises"
 description = "Interactive OCaml exercises running purely in the browser."
 keywords = "ocaml, functional programming, web-based compiler"
 

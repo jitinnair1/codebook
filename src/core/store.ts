@@ -2,14 +2,18 @@
 import { createStore } from 'zustand/vanilla';
 import { persist } from 'zustand/middleware';
 import { exercises } from '../exercises/registry';
+import { defaultLanguageId } from '../languages/registry';
 
 export interface AppState {
   currentExerciseId: string;
+  currentLanguageId: string;
   completedIds: string[];
   markComplete: (id: string) => void;
   setCurrent: (id: string) => void;
+  setLanguage: (langId: string) => void;
   userCode: Record<string, string>;
-  saveUserCode: (id: string, code: string) => void;
+  saveUserCode: (exerciseId: string, languageId: string, code: string) => void;
+  getUserCode: (exerciseId: string, languageId: string) => string | undefined;
 }
 
 export const store = createStore<AppState>()(
@@ -17,6 +21,7 @@ export const store = createStore<AppState>()(
     (set, get) => ({
       //initial state
       currentExerciseId: exercises[0]?.id || "1.1",
+      currentLanguageId: defaultLanguageId,
       completedIds: [],
       userCode: {},
 
@@ -30,7 +35,18 @@ export const store = createStore<AppState>()(
 
       setCurrent: (id) => set({ currentExerciseId: id }),
 
-      saveUserCode: (id: string, code: string) => set({ userCode: { ...get().userCode, [id]: code } })
+      setLanguage: (langId) => set({ currentLanguageId: langId }),
+
+      saveUserCode: (exerciseId: string, languageId: string, code: string) => {
+        const key = `${exerciseId}:${languageId}`;
+        set({ userCode: { ...get().userCode, [key]: code } });
+      },
+
+      getUserCode: (exerciseId: string, languageId: string) => {
+        const { userCode } = get();
+        const key = `${exerciseId}:${languageId}`;
+        return userCode[key] ?? userCode[exerciseId];
+      }
 
     }),
     {

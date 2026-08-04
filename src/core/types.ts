@@ -1,10 +1,28 @@
+export interface LanguageVariant {
+    initialCode: string;
+    testCode: string;
+    validate?: (code: string, output: string) => true | string;
+}
+
 export interface Exercise {
     id: string;
     title: string;
     description: string;
-    initialCode: string;
-    testCode: string;
-    validate: (code: string, output: string) => true | string;
+    initialCode?: string;
+    testCode?: string;
+    validate?: (code: string, output: string) => true | string;
+    variants?: Record<string, LanguageVariant>;
+}
+
+export function getExerciseVariant(exercise: Exercise, langId: string): LanguageVariant {
+    if (exercise.variants && exercise.variants[langId]) {
+        return exercise.variants[langId];
+    }
+    return {
+        initialCode: exercise.initialCode || '',
+        testCode: exercise.testCode || '',
+        validate: exercise.validate,
+    };
 }
 
 export interface Chapter {

@@ -1,5 +1,6 @@
 import { store } from './store';
 import { exercises } from '../exercises/registry';
+import { getExerciseVariant } from './types';
 import { getCode } from './editor';
 import { status } from '../ui/status';
 import { confetti } from '../ui/confetti';
@@ -31,9 +32,11 @@ class Orchestrator {
             return;
         }
 
-        const { currentExerciseId, completedIds } = store.getState();
+        const { currentExerciseId, currentLanguageId, completedIds } = store.getState();
         const currentEx = exercises.find(e => e.id === currentExerciseId);
         if (!currentEx) return;
+
+        const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
 
         //prepare ui
         this.setRunningState(true);
@@ -43,10 +46,10 @@ class Orchestrator {
         try {
             //get code
             const userCode = getCode();
-            store.getState().saveUserCode(currentExerciseId, userCode);
+            store.getState().saveUserCode(currentExerciseId, currentLanguageId, userCode);
 
             //run via adapter
-            const finalTestCode = currentEx.testCode || "";
+            const finalTestCode = exerciseVariant.testCode || "";
             const result = await activeRunner.run(userCode, finalTestCode);
 
             //handle result
@@ -64,11 +67,13 @@ class Orchestrator {
             }
 
             //structural/custom validation
-            const validation = currentEx.validate(userCode, result.output);
-            if (validation !== true) {
-                status.setFailed();
-                elements.console.textContent += `\n\n${validation}`;
-                return;
+            if (exerciseVariant.validate) {
+                const validation = exerciseVariant.validate(userCode, result.output);
+                if (validation !== true) {
+                    status.setFailed();
+                    elements.console.textContent += `\n\n${validation}`;
+                    return;
+                }
             }
 
             //success

@@ -1,9 +1,7 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
-import { EditorState } from '@codemirror/state';
+import { EditorState, Compartment, Extension } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
-import { StreamLanguage } from '@codemirror/language';
-import { oCaml } from '@codemirror/legacy-modes/mode/mllike';
 import { autocompletion, acceptCompletion } from '@codemirror/autocomplete';
 import { themeCompartment, getTheme } from '../ui/theme';
 import { showPopup } from '../ui/popup';
@@ -12,7 +10,20 @@ let view: EditorView | null = null;
 let tabCount = 0;
 let lastTabTime = 0;
 
-export function initEditor(initialCode: string, onSave?: () => void) {
+//JN: since Codemirror's editor state and config are immutable by design, we use compartments to update
+//the language syntax and theme. Compartments are dynamic slots for extensions (like syntax highlighting 
+//or theme) used to swap the configs dynamically.
+export const languageCompartment = new Compartment();
+
+export function updateEditorLanguage(syntaxExtension?: Extension) {
+    if (view) {
+        view.dispatch({
+            effects: languageCompartment.reconfigure(syntaxExtension || [])
+        });
+    }
+}
+
+export function initEditor(initialCode: string, syntaxExtension?: Extension, onSave?: () => void) {
     const editorEl = document.getElementById('editor');
     if (!editorEl) return;
 
@@ -61,7 +72,7 @@ export function initEditor(initialCode: string, onSave?: () => void) {
                         preventDefault: true
                     }
                 ]),
-                StreamLanguage.define(oCaml),
+                languageCompartment.of(syntaxExtension || []),
                 themeCompartment.of(getTheme(isDark)),
                 EditorView.lineWrapping,
                 EditorView.theme({
@@ -88,7 +99,7 @@ export function initEditor(initialCode: string, onSave?: () => void) {
             parent: editorEl
         });
     } else {
-        // Update code only if it's strictly different
+        updateEditorLanguage(syntaxExtension);
         const currentCode = view.state.doc.toString();
         if (currentCode !== initialCode) {
             view.dispatch({

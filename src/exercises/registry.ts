@@ -27,12 +27,8 @@ function generateId(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
-//extract title from problem.md (since we dont specify lesson titles in curriculum.yaml)
-function extractTitle(problemMd: string, folder: string): string {
-  const match = problemMd.match(/^#\s+(.+)$/m);
-  if (match && match[1]) {
-    return match[1].trim();
-  }
+// Format exercise title from directory name
+function formatTitle(folder: string): string {
   return folder
     .split('_')
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
@@ -60,7 +56,7 @@ export const curriculum: Chapter[] = rawChapters.map((ch, chapterIndex) => {
 
       const problemPath = `./${folder}/problem.md`;
       const description = problemFiles[problemPath] || '';
-      const title = extractTitle(description, folder);
+      const title = formatTitle(folder);
 
       const exercise: Exercise = {
         id: exId,

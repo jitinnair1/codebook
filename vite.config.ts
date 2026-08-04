@@ -19,7 +19,7 @@ function rawTextPlugin(): Plugin {
     name: "vite-raw-text",
     enforce: "pre",
     async resolveId(source, importer) {
-      if ((source.endsWith(".md") || source.endsWith(".ml")) && importer) {
+      if ((source.endsWith(".md") || source.endsWith(".ml")) && !source.includes('?') && importer) {
         const resolved = await this.resolve(source, importer);
         if (resolved) {
           const virtualId = resolved.id + "\0__raw__";

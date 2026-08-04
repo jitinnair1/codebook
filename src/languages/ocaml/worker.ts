@@ -1,18 +1,49 @@
 import harness from './harness.ml?raw';
 
-// Import the OCaml bytecode runtime into worker scope
-import './toplevel.bc.js';
+// Import as URL only — do NOT statically import the script itself.
+// toplevel.bc.js is a js_of_ocaml IIFE that uses `with()`, which is
+// forbidden in ES module strict mode. Loading via fetch + indirect eval
+// executes it in sloppy (non-strict) mode where `with` is allowed.
+import toplevelUrl from './toplevel.bc.js?url';
 
 interface OCamlRuntime {
     run: (code: string) => { out: string; err: string; success: boolean };
 }
 
 function getOCamlRuntime(): OCamlRuntime | undefined {
-    return (self as unknown as { ocaml?: OCamlRuntime }).ocaml;
+    const fromSelf = (self as unknown as { ocaml?: OCamlRuntime }).ocaml;
+    if (fromSelf && typeof fromSelf.run === 'function') return fromSelf;
+
+    const fromGlobal = (globalThis as unknown as { ocaml?: OCamlRuntime }).ocaml;
+    if (fromGlobal && typeof fromGlobal.run === 'function') return fromGlobal;
+
+    return undefined;
 }
 
-// Notify main thread worker is ready
-self.postMessage({ type: 'READY' });
+// Load the OCaml runtime dynamically and only signal READY once confirmed
+async function loadRuntime(): Promise<void> {
+    try {
+        const response = await fetch(toplevelUrl);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status} fetching toplevel.bc.js`);
+        }
+        const script = await response.text();
+        // Indirect eval: (0, eval)(...) runs in the global scope in sloppy mode,
+        // which is required because js_of_ocaml emits `with()` statements.
+        (0, eval)(script);
+    } catch (e: any) {
+        console.error('[OCaml Worker] Failed to load runtime:', e);
+        return;
+    }
+
+    if (getOCamlRuntime()) {
+        self.postMessage({ type: 'READY' });
+    } else {
+        console.error('[OCaml Worker] Runtime loaded but ocaml.run not found on globalThis');
+    }
+}
+
+loadRuntime();
 
 self.onmessage = (e: MessageEvent) => {
     const data = e.data;

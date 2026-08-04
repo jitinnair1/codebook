@@ -60,7 +60,20 @@ class OCamlAdapter implements CodeRunner {
         const id = `req_${++this.requestIdCounter}_${Date.now()}`;
 
         return new Promise<ExecutionResult>((resolve) => {
-            this.pendingCallbacks.set(id, resolve);
+            const timeout = setTimeout(() => {
+                this.pendingCallbacks.delete(id);
+                resolve({
+                    success: false,
+                    output: "",
+                    error: "Execution timed out (30s). The compiler worker may have crashed."
+                });
+            }, 30_000);
+
+            this.pendingCallbacks.set(id, (result) => {
+                clearTimeout(timeout);
+                resolve(result);
+            });
+
             this.worker?.postMessage({
                 type: 'RUN',
                 id,

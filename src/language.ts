@@ -8,4 +8,11 @@ export function getActiveRunner(): CodeRunner {
     return getLanguageRunner(lang);
 }
 
-export const activeRunner = getActiveRunner();
+// Proxy that always delegates to the current language's runner,
+// so switching languages is reflected immediately.
+export const activeRunner: CodeRunner = {
+    get name() { return getActiveRunner().name; },
+    isReady() { return getActiveRunner().isReady(); },
+    run(userCode: string, testCode?: string) { return getActiveRunner().run(userCode, testCode); },
+    terminate() { return getActiveRunner().terminate?.(); },
+};

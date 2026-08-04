@@ -38,10 +38,17 @@ export default metadata;
 Create `src/languages/python/adapter.ts` implementing the `CodeRunner` interface:
 
 ```ts
-import type { CodeRunner, RunResult } from '../../core/types';
+import type { CodeRunner, ExecutionResult } from '../../core/types';
 
 export const runner: CodeRunner = {
-  async run(userCode: string, testCode: string): Promise<RunResult> {
+  name: 'python',
+
+  async isReady(): Promise<boolean> {
+    // Return true when Web Worker / WASM runtime is initialized
+    return true;
+  },
+
+  async run(userCode: string, testCode: string = ""): Promise<ExecutionResult> {
     try {
       // Execute user code + test code using your Web Worker or engine
       const output = "Execution output here...";

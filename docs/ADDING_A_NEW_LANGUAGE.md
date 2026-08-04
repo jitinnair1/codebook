@@ -54,15 +54,17 @@ export default metadata;
 Implements the `CodeRunner` interface to execute code (typically via Web Worker or WASM).
 
 ```ts
-import type { CodeRunner, RunResult } from '../../core/types';
+import type { CodeRunner, ExecutionResult } from '../../core/types';
 
 export const runner: CodeRunner = {
+  name: 'python',
+
   async isReady(): Promise<boolean> {
     // Return true when Web Worker / WASM runtime is initialized
     return true;
   },
 
-  async run(userCode: string, testCode: string): Promise<RunResult> {
+  async run(userCode: string, testCode: string = ""): Promise<ExecutionResult> {
     try {
       // Execute combined user code and test suite
       const output = "Execution output...";

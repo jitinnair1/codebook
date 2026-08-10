@@ -4,7 +4,22 @@
 
 import harness from './harness.go?raw';
 
-self.postMessage({ type: 'READY' });
+async function initRuntime(): Promise<void> {
+  try {
+    if (typeof (self as any).initYaegi === 'function') {
+      await (self as any).initYaegi();
+    }
+    self.postMessage({ type: 'READY' });
+  } catch (err: any) {
+    console.error('[Go Worker Error]: Failed to initialize Go runtime', err);
+    self.postMessage({
+      type: 'INIT_ERROR',
+      error: err?.message || String(err)
+    });
+  }
+}
+
+initRuntime();
 
 interface RunMessage {
   type: 'RUN';

@@ -26,6 +26,12 @@ class GoAdapter implements CodeRunner {
         return;
       }
 
+      if (data?.type === 'INIT_ERROR') {
+        console.error('[Go Worker Init Error]:', data.error);
+        this.ready = false;
+        return;
+      }
+
       if (data?.type === 'RESULT' && data.id) {
         const callback = this.pendingCallbacks.get(data.id);
         if (callback) {
@@ -49,11 +55,11 @@ class GoAdapter implements CodeRunner {
   }
 
   async run(userCode: string, testCode: string = ''): Promise<ExecutionResult> {
-    if (!this.worker) {
+    if (!this.worker || !this.ready) {
       return {
         success: false,
         output: '',
-        error: 'Go execution worker is not initialized.'
+        error: 'Go execution worker is not ready.'
       };
     }
 

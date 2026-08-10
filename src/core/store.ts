@@ -50,7 +50,7 @@ export const store = createStore<AppState>()(
 
     }),
     {
-      name: 'sowar-storage',
+      name: 'storage',
       //todo: maybe filter out later what all gets saved?
     }
   )

@@ -14,7 +14,7 @@ export function initResetProgress() {
     elements.resetProgress.cancelBtn?.addEventListener('click', closeModal);
 
     elements.resetProgress.confirmBtn?.addEventListener('click', () => {
-        localStorage.removeItem('sowar-storage');
+        localStorage.removeItem('storage');
         window.location.reload();
     });
 

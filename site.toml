@@ -1,17 +1,17 @@
-title = "Sowar"
-subtitle = "OCaml Exercises"
-version = "v0.1"
-language = "ocaml"
+title = "codebook"
+subtitle = "interactive exercises"
+default_language = "typescript"
+languages = ["typescript"]
 
-project_url = "https://github.com/jitinnair1/sowar"
+project_url = "https://github.com/jitinnair1/codebook"
 author_url = "https://github.com/jitinnair1"
 
 # if 'logo_image' (value is path to image) is provided (uncommented), it replaces the emoji with an <img> tag.
-logo_emoji = "🐪"
+logo_emoji = "📓"
 
-headline = "Sowar | OCaml exercises"
-description = "Interactive OCaml exercises running purely in the browser."
-keywords = "ocaml, functional programming, web-based compiler"
+headline = "codebook | interactive exercises"
+description = "Interactive coding exercises running purely in the browser."
+keywords = "codebook, interactive exercises, web-based compiler"
 
 # If og_image (value is path to image) is provided, that is used as
 # OG meta preview image

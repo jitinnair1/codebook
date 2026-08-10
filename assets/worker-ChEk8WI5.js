@@ -1,0 +1,7 @@
+(function(){function e(e){return e.replace(/:\s*\[[^\]]+\](\[\])?/g,``).replace(/:\s*[\w<>]+(\[\])?/g,``).replace(/interface\s+\w+\s*\{[^}]*\}/g,``).replace(/type\s+\w+\s*=[^;]+;/g,``)}self.postMessage({type:`READY`}),self.onmessage=t=>{let n=t.data;if(!n||n.type!==`RUN`)return;let{id:r,userCode:i,testCode:a=``}=n,o=[],s={log:(...e)=>o.push(e.map(e=>typeof e==`object`?JSON.stringify(e):String(e)).join(` `)),error:(...e)=>o.push(`[error] `+e.map(e=>typeof e==`object`?JSON.stringify(e):String(e)).join(` `)),warn:(...e)=>o.push(`[warn] `+e.map(e=>typeof e==`object`?JSON.stringify(e):String(e)).join(` `)),info:(...e)=>o.push(e.map(e=>typeof e==`object`?JSON.stringify(e):String(e)).join(` `))};try{let t=`
+      ${e("const Tests = {\n  boolCheck(msg: string, b: boolean) {\n    if (b) {\n      console.log(`Test passed: ${msg}`);\n    } else {\n      console.log(`Test failed: ${msg}`);\n      throw new Error(`Test failed: ${msg}`);\n    }\n  },\n\n  equalCheck<T>(msg: string, expected: T, actual: T) {\n    if (expected === actual) {\n      console.log(`Test passed: ${msg}`);\n    } else {\n      console.log(`Test failed: ${msg}\\nExpected: ${JSON.stringify(expected)}\\nActual:   ${JSON.stringify(actual)}`);\n      throw new Error(`Test failed: ${msg}`);\n    }\n  }\n};\n")}
+      ${e(i)}
+      ${e(a)}
+    `;Function(`console`,t)(s),self.postMessage({type:`RESULT`,id:r,success:!0,output:o.join(`
+`)})}catch(e){self.postMessage({type:`RESULT`,id:r,success:!1,output:o.join(`
+`),error:e?.message||String(e)})}}})();

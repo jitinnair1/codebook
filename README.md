@@ -1,4 +1,4 @@
-This is a template for running programming exercise is the browser. [Demo]()
+This is a template for running programming exercise is the browser. [Try it here](https://jitinnair1.github.io/codebook/)
 
 Currently supported languages: 
   - OCaml

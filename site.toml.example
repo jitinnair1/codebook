@@ -1,0 +1,31 @@
+# Site Configuration Example
+# Copy this file to `site.toml` to customize your site settings.
+
+# Site Title & Subtitle
+title = "codebook"
+subtitle = "interactive exercises"
+version = "v0.1"
+
+# Language Configuration
+# `languages`: Array of globally enabled language IDs (matching folders under src/languages/<lang_id>)
+# `default_language`: Default language selected when users first load the site
+default_language = "ocaml"
+languages = ["ocaml"]
+
+# URLs
+project_url = "https://github.com/jitinnair1/codebook"
+author_url = "https://github.com/jitinnair1"
+
+# Branding & Assets
+# `logo_emoji`: Emoji displayed in the header logo badge
+logo_emoji = "📓"
+# `logo_image`: Path to optional image logo (uncomment to override logo_emoji)
+# logo_image = "/public/logo.png"
+
+# Meta & SEO
+headline = "codebook | in-browser programming exercises"
+description = "Interactive coding exercises in the browser."
+keywords = "codebook, interactive exercises, web-based compiler"
+
+# Open Graph Preview Image (uncomment to enable)
+# og_image = "/public/og_preview.png"

@@ -8,7 +8,7 @@ export function initBranding() {
         if (siteConfig.logo_image) {
             elements.branding.logo.innerHTML = `<img src="${siteConfig.logo_image}" alt="Logo" class="h-8 w-auto" />`;
         } else {
-            elements.branding.logo.textContent = siteConfig.logo_emoji || "🐪";
+            elements.branding.logo.textContent = siteConfig.logo_emoji || "📓";
         }
     }
 

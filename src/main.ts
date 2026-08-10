@@ -149,10 +149,23 @@ if (elements.clearConsoleBtn) {
 }
 
 //routing
+if (elements.branding.brandLink) {
+    elements.branding.brandLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        const firstExId = exercises[0]?.id;
+        if (firstExId) {
+            window.location.hash = `#${firstExId}`;
+            store.getState().setCurrent(firstExId);
+        }
+    });
+}
+
 window.addEventListener('hashchange', () => {
     const id = window.location.hash.slice(1);
     if (exercises.find(e => e.id === id)) {
         store.getState().setCurrent(id);
+    } else if (!id && exercises.length > 0) {
+        store.getState().setCurrent(exercises[0].id);
     }
 });
 

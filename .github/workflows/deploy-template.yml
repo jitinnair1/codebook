@@ -20,11 +20,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Prepare Template State
-        run: |
-          chmod +x scripts/publish-template.sh
-          ./scripts/publish-template.sh
-
       - name: Sync to template branch
         run: |
           git checkout -B template

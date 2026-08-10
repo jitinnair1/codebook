@@ -1,8 +1,10 @@
 import { CodeRunner, ExecutionResult } from '../../core/types';
+import harness from './harness.ts?raw';
 
 function stripTsTypes(code: string): string {
   return code
-    .replace(/:\s*(string|number|boolean|any|void|unknown|never|object|[\w\[\]<>]+)/g, '')
+    .replace(/:\s*\[[^\]]+\](\[\])?/g, '')
+    .replace(/:\s*[\w<>]+(\[\])?/g, '')
     .replace(/interface\s+\w+\s*\{[^}]*\}/g, '')
     .replace(/type\s+\w+\s*=[^;]+;/g, '');
 }
@@ -24,10 +26,12 @@ class TypeScriptAdapter implements CodeRunner {
     };
 
     try {
+      const cleanHarness = stripTsTypes(harness);
       const cleanUserCode = stripTsTypes(userCode);
       const cleanTestCode = stripTsTypes(testCode);
 
       const combinedCode = `
+        ${cleanHarness}
         ${cleanUserCode}
         ${cleanTestCode}
       `;

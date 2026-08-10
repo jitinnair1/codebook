@@ -1,4 +1,5 @@
 import { loadPyodide } from 'pyodide';
+import harness from './harness.py?raw';
 
 let pyodidePromise: Promise<any> | null = null;
 
@@ -47,7 +48,7 @@ self.onmessage = async (e: MessageEvent) => {
         }
       });
 
-      const combinedCode = testCode ? `${userCode}\n\n${testCode}` : userCode;
+      const combinedCode = testCode ? `${harness}\n\n${userCode}\n\n${testCode}` : `${harness}\n\n${userCode}`;
 
       await pyodide.runPythonAsync(combinedCode);
 

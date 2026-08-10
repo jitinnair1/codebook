@@ -1,7 +1,7 @@
 {
-  "name": "sowar",
+  "name": "codebook",
   "version": "0.1.0",
-  "description": "in-browser OCaml exercises",
+  "description": "in-browser interactive coding exercises",
   "type": "module",
   "private": true,
   "scripts": {

@@ -1,27 +1,9 @@
 chapters:
   "Basics":
       - hello_world
-      - ints_vs_floats
-      - functions
-      - conditionals
-      - tuples
       # - lists
       # - arrays
       # - strings
 
-  "Key Concepts":
-      - currying
-      # - pure_functions
-      # - immutability
-      # - side_effects
-      # - recursion
-      # - pattern_matching
-      # - map
-      # - filter
-      # - reduce
-      # - function_composition
-
-  # "Intermediate Concepts"
-  #     - memoization
-  #     - tail_recursion
+  # "More Concepts"
   #     - reference_vs_value

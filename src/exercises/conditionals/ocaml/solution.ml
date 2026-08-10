@@ -1,1 +1,0 @@
-let abs_int x = if x < 0 then -x else x

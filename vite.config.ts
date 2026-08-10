@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
-import { readFileSync, copyFileSync } from "node:fs";
+import { readFileSync, copyFileSync, existsSync } from "node:fs";
 import { parse } from "toml";
 import { parse as parseYaml } from "yaml";
 import { resolve } from "node:path";
@@ -19,7 +19,7 @@ function rawTextPlugin(): Plugin {
     name: "vite-raw-text",
     enforce: "pre",
     async resolveId(source, importer) {
-      if ((source.endsWith(".md") || source.endsWith(".ml")) && !source.includes('?') && importer) {
+      if (source.endsWith(".md") && !source.includes('?') && importer) {
         const resolved = await this.resolve(source, importer);
         if (resolved) {
           const virtualId = resolved.id + "\0__raw__";
@@ -85,15 +85,23 @@ function tomlPlugin(): Plugin {
     async resolveId(source: string, importer: string | undefined) {
       if (!source.endsWith(".toml") || !importer) return;
       const resolved = await this.resolve(source, importer);
-      if (resolved) {
+      if (resolved && existsSync(resolved.id)) {
         const virtualId = resolved.id + "\0__toml__";
         cache.set(virtualId, resolved.id);
+        return { id: virtualId, moduleSideEffects: true };
+      } else if (source.endsWith("site.toml")) {
+        const fallbackPath = resolve(import.meta.dirname, "site.toml.example");
+        const virtualId = fallbackPath + "\0__toml__";
+        cache.set(virtualId, fallbackPath);
         return { id: virtualId, moduleSideEffects: true };
       }
     },
     load(id: string) {
       if (id.endsWith("__toml__")) {
-        const realPath = cache.get(id) || id.replace(/\0__toml__$/, "");
+        let realPath = cache.get(id) || id.replace(/\0__toml__$/, "");
+        if (!existsSync(realPath) && realPath.endsWith("site.toml")) {
+          realPath = resolve(import.meta.dirname, "site.toml.example");
+        }
         try {
           const content = readFileSync(realPath, "utf-8");
           const data = parse(content);
@@ -113,7 +121,11 @@ function htmlMetaPlugin(): Plugin {
     name: "vite-html-meta",
     transformIndexHtml(html) {
       try {
-        const tomlContent = readFileSync(resolve(__dirname, "site.toml"), "utf-8");
+        let tomlPath = resolve(import.meta.dirname, "site.toml");
+        if (!existsSync(tomlPath)) {
+          tomlPath = resolve(import.meta.dirname, "site.toml.example");
+        }
+        const tomlContent = readFileSync(tomlPath, "utf-8");
         const siteConfig = parse(tomlContent);
         const { headline, description, keywords, og_image } = siteConfig;
 

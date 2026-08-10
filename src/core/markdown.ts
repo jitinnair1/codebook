@@ -1,10 +1,8 @@
 import { marked } from 'marked';
 import { EditorView } from 'codemirror';
-import { EditorState } from '@codemirror/state';
-import { StreamLanguage } from '@codemirror/language';
-import { oCaml } from '@codemirror/legacy-modes/mode/mllike';
-import { c } from '@codemirror/legacy-modes/mode/clike';
+import { EditorState, Extension } from '@codemirror/state';
 import { getTheme } from '../ui/theme';
+import { getLanguageSyntax, defaultLanguageId } from '../languages/registry';
 
 export function configureMarkdown() {
     const renderer = {
@@ -30,6 +28,8 @@ export function highlightStaticBlocks() {
     blocks.forEach(block => {
         const text = block.textContent || "";
         const lang = block.getAttribute('data-lang');
+        const targetLang = lang || defaultLanguageId;
+        const syntaxExt: Extension | undefined = getLanguageSyntax(targetLang) || getLanguageSyntax(defaultLanguageId);
 
         block.textContent = "";
 
@@ -40,8 +40,7 @@ export function highlightStaticBlocks() {
                     EditorState.readOnly.of(true),
                     EditorView.editable.of(false),
                     getTheme(isDark),
-                    lang === 'ocaml' || !lang ? StreamLanguage.define(oCaml) :
-                        (lang === 'c' || lang === 'clike') ? StreamLanguage.define(c) : [],
+                    ...(syntaxExt ? [syntaxExt] : []),
                     EditorView.lineWrapping,
                     EditorView.theme({
                         "&": { borderRadius: "4px", overflow: "hidden", backgroundColor: "var(--bg-app)" },

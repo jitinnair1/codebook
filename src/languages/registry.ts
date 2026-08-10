@@ -45,15 +45,20 @@ for (const path in metadataModules) {
 
 //extract site config for enabled languages & default language
 const configAny = siteConfig as any;
+const allDiscoveredIds = Array.from(discoveredLanguages.keys());
+const fallbackDefaultId = allDiscoveredIds.length > 0 ? allDiscoveredIds[0] : '';
+
 const rawLanguages: string[] = Array.isArray(configAny.languages)
   ? configAny.languages
-  : [configAny.default_language || configAny.language || 'ocaml'];
+  : (configAny.default_language || configAny.language)
+    ? [configAny.default_language || configAny.language]
+    : allDiscoveredIds;
 
 const enabledLanguageIds = rawLanguages.filter(id => discoveredLanguages.has(id));
 
 export const defaultLanguageId: string =
   configAny.default_language ||
-  (enabledLanguageIds.length > 0 ? enabledLanguageIds[0] : 'ocaml');
+  (enabledLanguageIds.length > 0 ? enabledLanguageIds[0] : fallbackDefaultId);
 
 export function getEnabledLanguages(): LanguageMetadata[] {
   return enabledLanguageIds

@@ -9,7 +9,7 @@ subtitle = "interactive exercises"
 # `languages`: Array of globally enabled language IDs (matching folders under src/languages/<lang_id>)
 # `default_language`: Default language selected when users first load the site
 default_language = "typescript"
-languages = ["typescript", "ocaml"]
+languages = ["typescript", "ocaml", "python"]
 
 # URLs
 project_url = "https://github.com/jitinnair1/codebook"

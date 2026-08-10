@@ -155,6 +155,7 @@ function htmlMetaPlugin(): Plugin {
 }
 
 export default defineConfig({
+  base: "./",
   root: ".",
   build: {
     outDir: "dist",

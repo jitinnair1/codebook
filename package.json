@@ -2,6 +2,7 @@
   "name": "sowar",
   "version": "0.1.0",
   "description": "in-browser OCaml exercises",
+  "type": "module",
   "private": true,
   "scripts": {
     "clean": "rm -rf dist",

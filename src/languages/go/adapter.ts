@@ -4,11 +4,23 @@ class GoAdapter implements CodeRunner {
   name = 'go';
   private worker: Worker | null = null;
   private ready = false;
-  private pendingCallbacks = new Map<string, (res: ExecutionResult) => void>();
+  private pendingCallbacks = new Map<string, { resolve: (res: ExecutionResult) => void; timer: ReturnType<typeof setTimeout> }>();
   private requestIdCounter = 0;
 
   constructor() {
     this.initWorker();
+  }
+
+  private clearPendingCallbacks(reason = 'Go execution worker was terminated or restarted.') {
+    for (const pending of this.pendingCallbacks.values()) {
+      clearTimeout(pending.timer);
+      pending.resolve({
+        success: false,
+        output: '',
+        error: reason
+      });
+    }
+    this.pendingCallbacks.clear();
   }
 
   private initWorker() {
@@ -16,6 +28,7 @@ class GoAdapter implements CodeRunner {
       this.worker.terminate();
     }
     this.ready = false;
+    this.clearPendingCallbacks();
 
     this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
 
@@ -33,10 +46,11 @@ class GoAdapter implements CodeRunner {
       }
 
       if (data?.type === 'RESULT' && data.id) {
-        const callback = this.pendingCallbacks.get(data.id);
-        if (callback) {
+        const pending = this.pendingCallbacks.get(data.id);
+        if (pending) {
+          clearTimeout(pending.timer);
           this.pendingCallbacks.delete(data.id);
-          callback({
+          pending.resolve({
             success: data.success,
             output: data.output,
             error: data.error
@@ -66,7 +80,7 @@ class GoAdapter implements CodeRunner {
     const id = `req_${++this.requestIdCounter}_${Date.now()}`;
 
     return new Promise<ExecutionResult>((resolve) => {
-      const timeout = setTimeout(() => {
+      const timer = setTimeout(() => {
         this.pendingCallbacks.delete(id);
         resolve({
           success: false,
@@ -75,10 +89,7 @@ class GoAdapter implements CodeRunner {
         });
       }, 30_000);
 
-      this.pendingCallbacks.set(id, (result) => {
-        clearTimeout(timeout);
-        resolve(result);
-      });
+      this.pendingCallbacks.set(id, { resolve, timer });
 
       this.worker?.postMessage({
         type: 'RUN',

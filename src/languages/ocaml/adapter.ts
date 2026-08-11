@@ -9,5 +9,4 @@ class OCamlAdapter extends BaseAdapter {
 }
 
 export const runner = new OCamlAdapter();
-export const ocamlRunner = runner;
 export default runner;

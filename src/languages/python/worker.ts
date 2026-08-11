@@ -3,23 +3,12 @@ import { createWorkerHandler } from '../base-worker';
 import harness from './harness.py?raw';
 
 let pyodideInstance: any = null;
+const stdoutLogs: string[] = [];
+const stderrLogs: string[] = [];
 
-createWorkerHandler({
-  async init() {
-    pyodideInstance = await loadPyodide({
-      indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.3/full/'
-    });
-  },
-
-  async execute(userCode: string, testCode: string = '') {
-    const stdoutLogs: string[] = [];
-    const stderrLogs: string[] = [];
-
-    if (!pyodideInstance) {
-      pyodideInstance = await loadPyodide({
-        indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.3/full/'
-      });
-    }
+async function setupPyodide() {
+  if (!pyodideInstance) {
+    pyodideInstance = await loadPyodide();
 
     pyodideInstance.setStdout({
       batched: (text: string) => {
@@ -32,11 +21,24 @@ createWorkerHandler({
         stderrLogs.push(text);
       }
     });
+  }
+  return pyodideInstance;
+}
 
+createWorkerHandler({
+  async init() {
+    await setupPyodide();
+  },
+
+  async execute(userCode: string, testCode: string = '') {
+    stdoutLogs.length = 0;
+    stderrLogs.length = 0;
+
+    const instance = await setupPyodide();
     const combinedCode = testCode ? `${harness}\n\n${userCode}\n\n${testCode}` : `${harness}\n\n${userCode}`;
 
     try {
-      await pyodideInstance.runPythonAsync(combinedCode);
+      await instance.runPythonAsync(combinedCode);
       const output = stdoutLogs.join('\n');
       const errorStr = stderrLogs.join('\n');
 

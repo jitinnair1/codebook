@@ -1,75 +1,56 @@
 import { loadPyodide } from 'pyodide';
+import { createWorkerHandler } from '../base-worker';
 import harness from './harness.py?raw';
 
-let pyodidePromise: Promise<any> | null = null;
+let pyodideInstance: any = null;
 
-async function initPyodide() {
-  if (!pyodidePromise) {
-    // loadPyodide from the npm package fetches the WASM binary from CDN at runtime
-    pyodidePromise = loadPyodide({
+createWorkerHandler({
+  async init() {
+    pyodideInstance = await loadPyodide({
       indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.3/full/'
     });
-  }
-  return pyodidePromise;
-}
+  },
 
-initPyodide()
-  .then(() => {
-    self.postMessage({ type: 'READY' });
-  })
-  .catch((err) => {
-    console.error('[Python Worker Error]: Failed to load Pyodide runtime', err);
-    self.postMessage({
-      type: 'INIT_ERROR',
-      error: err?.message || String(err)
+  async execute(userCode: string, testCode: string = '') {
+    const stdoutLogs: string[] = [];
+    const stderrLogs: string[] = [];
+
+    if (!pyodideInstance) {
+      pyodideInstance = await loadPyodide({
+        indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.3/full/'
+      });
+    }
+
+    pyodideInstance.setStdout({
+      batched: (text: string) => {
+        stdoutLogs.push(text);
+      }
     });
-  });
 
-self.onmessage = async (e: MessageEvent) => {
-  const data = e.data;
-  if (data && data.type === 'RUN') {
-    const { id, userCode, testCode = '' } = data;
+    pyodideInstance.setStderr({
+      batched: (text: string) => {
+        stderrLogs.push(text);
+      }
+    });
 
-    let stdoutLogs: string[] = [];
-    let stderrLogs: string[] = [];
+    const combinedCode = testCode ? `${harness}\n\n${userCode}\n\n${testCode}` : `${harness}\n\n${userCode}`;
 
     try {
-      const pyodide = await initPyodide();
-
-      pyodide.setStdout({
-        batched: (text: string) => {
-          stdoutLogs.push(text);
-        }
-      });
-
-      pyodide.setStderr({
-        batched: (text: string) => {
-          stderrLogs.push(text);
-        }
-      });
-
-      const combinedCode = testCode ? `${harness}\n\n${userCode}\n\n${testCode}` : `${harness}\n\n${userCode}`;
-
-      await pyodide.runPythonAsync(combinedCode);
-
+      await pyodideInstance.runPythonAsync(combinedCode);
       const output = stdoutLogs.join('\n');
       const errorStr = stderrLogs.join('\n');
 
-      self.postMessage({
-        type: 'RESULT',
-        id,
+      return {
         success: true,
         output,
         error: errorStr || undefined
-      });
+      };
     } catch (err: any) {
-      self.postMessage({
-        type: 'RESULT',
-        id,
+      return {
         success: false,
         output: stdoutLogs.join('\n'),
         error: err?.message || String(err)
-      });
+      };
     }
   }
-};
+});

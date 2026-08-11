@@ -3,30 +3,7 @@
 // Fallback Route: Go Playground Compile API
 
 import harness from './harness.go?raw';
-
-async function initRuntime(): Promise<void> {
-  try {
-    if (typeof (self as any).initYaegi === 'function') {
-      await (self as any).initYaegi();
-    }
-    self.postMessage({ type: 'READY' });
-  } catch (err: any) {
-    console.error('[Go Worker Error]: Failed to initialize Go runtime', err);
-    self.postMessage({
-      type: 'INIT_ERROR',
-      error: err?.message || String(err)
-    });
-  }
-}
-
-initRuntime();
-
-interface RunMessage {
-  type: 'RUN';
-  id: string;
-  userCode: string;
-  testCode?: string;
-}
+import { createWorkerHandler } from '../base-worker';
 
 function combineGoCode(userCode: string, testCode: string, harnessCode: string): string {
   const allCodes = [userCode, testCode, harnessCode];
@@ -91,11 +68,10 @@ function combineGoCode(userCode: string, testCode: string, harnessCode: string):
 }
 
 async function runWasmInterpreter(code: string): Promise<{ success: boolean; output: string; error?: string }> {
-  // Check if WASM interpreter is loaded in worker global scope
   if (typeof (self as any).yaegiEval === 'function') {
     return (self as any).yaegiEval(code);
   }
-  throw new Error("WASM interpreter binary (yaegi.wasm) is not loaded.");
+  throw new Error('WASM interpreter binary (yaegi.wasm) is not loaded.');
 }
 
 async function runPlaygroundApi(code: string): Promise<{ success: boolean; output: string; error?: string }> {
@@ -136,41 +112,32 @@ async function runPlaygroundApi(code: string): Promise<{ success: boolean; outpu
   };
 }
 
-self.onmessage = async (e: MessageEvent<RunMessage>) => {
-  const data = e.data;
-  if (!data || data.type !== 'RUN') return;
+createWorkerHandler({
+  async init() {
+    if (typeof (self as any).initYaegi === 'function') {
+      await (self as any).initYaegi();
+    }
+  },
 
-  const { id, userCode, testCode = '' } = data;
-  const combinedCode = combineGoCode(userCode, testCode, harness);
+  async execute(userCode: string, testCode: string = '') {
+    const combinedCode = combineGoCode(userCode, testCode, harness);
 
-  // 1. Primary Route: Try In-Browser WASM Interpreter
-  try {
-    const wasmResult = await runWasmInterpreter(combinedCode);
-    self.postMessage({
-      type: 'RESULT',
-      id,
-      ...wasmResult
-    });
-    return;
-  } catch (wasmErr: any) {
-    console.log('[Go Worker]: Primary WASM route unavailable, attempting Playground API fallback:', wasmErr?.message);
+    // 1. Primary Route: Try In-Browser WASM Interpreter
+    try {
+      return await runWasmInterpreter(combinedCode);
+    } catch (wasmErr: any) {
+      console.log('[Go Worker]: Primary WASM route unavailable, attempting Playground API fallback:', wasmErr?.message);
+    }
+
+    // 2. Fallback Route: Go Playground API
+    try {
+      return await runPlaygroundApi(combinedCode);
+    } catch (apiErr: any) {
+      return {
+        success: false,
+        output: '',
+        error: apiErr?.message || String(apiErr)
+      };
+    }
   }
-
-  // 2. Fallback Route: Go Playground API
-  try {
-    const apiResult = await runPlaygroundApi(combinedCode);
-    self.postMessage({
-      type: 'RESULT',
-      id,
-      ...apiResult
-    });
-  } catch (apiErr: any) {
-    self.postMessage({
-      type: 'RESULT',
-      id,
-      success: false,
-      output: '',
-      error: apiErr?.message || String(apiErr)
-    });
-  }
-};
+});

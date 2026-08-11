@@ -1,10 +1,6 @@
 import harness from './harness.ml?raw';
-
-// Import as URL only — do NOT statically import the script itself.
-// toplevel.bc.js is a js_of_ocaml IIFE that uses `with()`, which is
-// forbidden in ES module strict mode. Loading via fetch + indirect eval
-// executes it in sloppy (non-strict) mode where `with` is allowed.
 import toplevelUrl from './toplevel.bc.js?url';
+import { createWorkerHandler } from '../base-worker';
 
 interface OCamlRuntime {
     run: (code: string) => { out: string; err: string; success: boolean };
@@ -20,79 +16,49 @@ function getOCamlRuntime(): OCamlRuntime | undefined {
     return undefined;
 }
 
-// Load the OCaml runtime dynamically and only signal READY once confirmed
-async function loadRuntime(): Promise<void> {
-    try {
+createWorkerHandler({
+    async init() {
         const response = await fetch(toplevelUrl);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status} fetching toplevel.bc.js`);
         }
         const script = await response.text();
-        // Indirect eval: (0, eval)(...) runs in the global scope in sloppy mode,
-        // which is required because js_of_ocaml emits `with()` statements.
+        // Indirect eval: (0, eval)(...) runs in global scope in sloppy mode (required for `with()` statements in js_of_ocaml)
         (0, eval)(script);
-    } catch (e: any) {
-        const errorMsg = e?.message || String(e);
-        console.error('[OCaml Worker] Failed to load runtime:', errorMsg);
-        self.postMessage({
-            type: 'INIT_ERROR',
-            error: `Failed to load OCaml runtime script: ${errorMsg}`
-        });
-        return;
-    }
 
-    if (getOCamlRuntime()) {
-        self.postMessage({ type: 'READY' });
-    } else {
-        const errorMsg = 'OCaml compiler runtime (ocaml.run) was not found after script execution';
-        console.error('[OCaml Worker]:', errorMsg);
-        self.postMessage({
-            type: 'INIT_ERROR',
-            error: errorMsg
-        });
-    }
-}
+        if (!getOCamlRuntime()) {
+            throw new Error('OCaml compiler runtime (ocaml.run) was not found after script execution');
+        }
+    },
 
-loadRuntime();
-
-self.onmessage = (e: MessageEvent) => {
-    const data = e.data;
-    if (data && data.type === 'RUN') {
-        const { id, userCode, testCode = "" } = data;
+    execute(userCode: string, testCode: string = '') {
         const ocaml = getOCamlRuntime();
 
         if (!ocaml || !ocaml.run) {
-            self.postMessage({
-                type: 'RESULT',
-                id,
+            return {
                 success: false,
-                output: "",
-                error: "OCaml compiler not initialized in worker"
-            });
-            return;
+                output: '',
+                error: 'OCaml compiler not initialized in worker'
+            };
         }
 
-        const fullCode = harness + "\n" + userCode + "\n" + testCode + ";;";
+        const fullCode = harness + '\n' + userCode + '\n' + testCode + ';;';
 
         try {
             const result = ocaml.run(fullCode);
-            const cleanOutput = (result.out || "").replace(/module Tests :[\s\S]*?end\n/g, "");
+            const cleanOutput = (result.out || '').replace(/module Tests :[\s\S]*?end\n/g, '');
 
-            self.postMessage({
-                type: 'RESULT',
-                id,
+            return {
                 success: Boolean(result.success),
                 output: cleanOutput,
-                error: result.err || ""
-            });
+                error: result.err || ''
+            };
         } catch (err: any) {
-            self.postMessage({
-                type: 'RESULT',
-                id,
+            return {
                 success: false,
-                output: "",
+                output: '',
                 error: err?.message || String(err)
-            });
+            };
         }
     }
-};
+});

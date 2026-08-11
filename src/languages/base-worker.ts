@@ -1,10 +1,7 @@
 import type { ExecutionResult } from '../core/types';
 
 export interface WorkerEngine {
-  /** Optional async or sync initialization for loading runtimes or transpiling harnesses */
   init?(): Promise<void> | void;
-
-  /** Executes user code + test code and returns the output and success status */
   execute(userCode: string, testCode?: string): Promise<ExecutionResult> | ExecutionResult;
 }
 

@@ -14,12 +14,7 @@ class Orchestrator {
     private isReady = false;
 
     constructor() {
-        //JN: setting runningState as false so that run button is disabled until
-        //the page loads. This also injects the stop icon into the run button. However,
-        //this does require the default run SVG to be hardcoded in the index.html file
-        //which might not be the best way to do this, might fix it later  ¯\_(ツ)_/¯
         this.setRunningState(false);
-        elements.runBtn.innerHTML = `<span>${ICONS.STOP}</span><span>Run</span>`;
     }
 
     async run() {
@@ -129,23 +124,20 @@ class Orchestrator {
             if (initError) {
                 this.isReady = false;
                 status.setError();
-                elements.runBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                elements.runBtn.disabled = true;
+                this.setRunningState(this.isRunning);
                 if (!elements.console.textContent || elements.console.textContent === "// Ready...") {
                     elements.console.textContent = `${activeRunner.name.toUpperCase()} runtime initialization failed:\n${initError}`;
                 }
                 return;
             }
 
-            if (await activeRunner.isReady()) {
-                this.isReady = true;
-                status.setReady();
-                elements.runBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                this.setRunningState(false);
-            } else {
-                this.isReady = false;
-                elements.runBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                elements.runBtn.disabled = true;
+            const ready = await activeRunner.isReady();
+            if (ready !== this.isReady) {
+                this.isReady = ready;
+                if (ready) {
+                    status.setReady();
+                }
+                this.setRunningState(this.isRunning);
             }
         }, 500);
     }

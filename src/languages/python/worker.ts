@@ -8,7 +8,11 @@ const stderrLogs: string[] = [];
 
 async function setupPyodide() {
   if (!pyodideInstance) {
-    pyodideInstance = await loadPyodide();
+    pyodideInstance = await loadPyodide({
+      //JN: We specify the url here since by default it looks to fetch assets from
+      //bundled module path which fails on deployment
+      indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.3/full/'
+    });
 
     pyodideInstance.setStdout({
       batched: (text: string) => {

@@ -91,6 +91,6 @@ languages = ["ocaml", "python"]
 
 ## How It Works
 
-1. `src/languages/registry.ts` uses Vite's `import.meta.glob` to automatically discover all language directories at build/dev time.
+1. `src/languages/language-registry.ts` uses Vite's `import.meta.glob` to automatically discover all language directories at build/dev time.
 2. The UI dropdown in `src/ui/languageSelector.ts` populates enabled languages from `site.toml`.
 3. Selecting the language loads its code, syntax highlighting, and runner adapter

@@ -1,5 +1,5 @@
 import { store } from './store';
-import { exercises } from '../exercises/registry';
+import { exercises } from '../exercises/exercise-registry';
 import { getExerciseVariant } from './types';
 import { getCode } from './editor';
 import { status } from '../ui/status';
@@ -125,12 +125,27 @@ class Orchestrator {
 
     waitForCompiler() {
         const check = setInterval(async () => {
+            const initError = activeRunner.getInitError?.();
+            if (initError) {
+                this.isReady = false;
+                status.setError();
+                elements.runBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                elements.runBtn.disabled = true;
+                if (!elements.console.textContent || elements.console.textContent === "// Ready...") {
+                    elements.console.textContent = `${activeRunner.name.toUpperCase()} runtime initialization failed:\n${initError}`;
+                }
+                return;
+            }
+
             if (await activeRunner.isReady()) {
                 this.isReady = true;
-                clearInterval(check);
                 status.setReady();
                 elements.runBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 this.setRunningState(false);
+            } else {
+                this.isReady = false;
+                elements.runBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                elements.runBtn.disabled = true;
             }
         }, 500);
     }

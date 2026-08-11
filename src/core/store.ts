@@ -1,8 +1,8 @@
 // src/core/store.ts
 import { createStore } from 'zustand/vanilla';
 import { persist } from 'zustand/middleware';
-import { exercises } from '../exercises/registry';
-import { defaultLanguageId } from '../languages/registry';
+import { exercises } from '../exercises/exercise-registry';
+import { defaultLanguageId } from '../languages/language-registry';
 
 export interface AppState {
   currentExerciseId: string;

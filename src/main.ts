@@ -1,7 +1,7 @@
 //src/main.ts
 import './input.css';
 import { store } from './core/store';
-import { exercises, curriculum } from './exercises/registry';
+import { exercises, curriculum } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
 import { initEditor, getCode, updateEditorTheme } from './core/editor';
 import { configureMarkdown, parseMarkdown, highlightStaticBlocks } from './core/markdown';
@@ -24,7 +24,7 @@ import { renderFooter } from './ui/footer';
 import { initShortcuts } from './ui/shortcuts';
 import { initResetProgress } from './ui/resetProgress';
 import { renderLanguageSelector } from './ui/languageSelector';
-import { getLanguageMetadata, getLanguageSyntax } from './languages/registry';
+import { getLanguageMetadata, getLanguageSyntax } from './languages/language-registry';
 
 //initialisation
 initBranding();

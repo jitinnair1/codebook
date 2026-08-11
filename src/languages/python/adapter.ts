@@ -70,6 +70,10 @@ class PythonAdapter implements CodeRunner {
     return this.ready;
   }
 
+  getInitError(): string | null {
+    return this.initError;
+  }
+
   private async waitUntilReady(maxWaitMs = 15_000): Promise<boolean> {
     if (this.ready) return true;
     if (this.initError) return false;

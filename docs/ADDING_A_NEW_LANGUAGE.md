@@ -126,7 +126,7 @@ Beyond `site.toml`, `src/languages/`, and `src/exercises/`, verify the following
 ### 1. Markdown Problem Description Code Blocks (`src/core/markdown.ts`)
 Static code blocks inside problem descriptions (`problem.md`) are highlighted via `highlightStaticBlocks()`.
 - **Current Behavior**: `src/core/markdown.ts` has explicit syntax branches (e.g., checking for `'ocaml'` or `'c'`).
-- **Action Required**: Add a branch for your new language, or update `highlightStaticBlocks()` to query `getLanguageSyntax(lang)` from `src/languages/registry.ts`.
+- **Action Required**: Add a branch for your new language, or update `highlightStaticBlocks()` to query `getLanguageSyntax(lang)` from `src/languages/language-registry.ts`.
 
 ### 2. Execution Orchestrator Dynamic Lookup (`src/core/runner.ts` / `src/language.ts`)
 - Ensure `runner.run()` evaluates `getActiveRunner()` dynamically at execution time rather than using a static reference cached on app start.

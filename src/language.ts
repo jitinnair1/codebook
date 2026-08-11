@@ -1,18 +1,44 @@
 import { store } from './core/store';
-import { getLanguageRunner, defaultLanguageId } from './languages/registry';
+import { loadLanguageRunner, getLoadedLanguageRunner, defaultLanguageId, getLanguageMetadata } from './languages/language-registry';
 import type { CodeRunner } from './core/types';
 
-export function getActiveRunner(): CodeRunner {
+export function getActiveLanguageId(): string {
     const { currentLanguageId } = store.getState();
-    const lang = currentLanguageId || defaultLanguageId;
-    return getLanguageRunner(lang);
+    return currentLanguageId || defaultLanguageId;
 }
 
-// Proxy that always delegates to the current language's runner,
-// so switching languages is reflected immediately.
+// Proxy that delegates to the lazy-loaded runner for the active language.
 export const activeRunner: CodeRunner = {
-    get name() { return getActiveRunner().name; },
-    isReady() { return getActiveRunner().isReady(); },
-    run(userCode: string, testCode?: string) { return getActiveRunner().run(userCode, testCode); },
-    terminate() { return getActiveRunner().terminate?.(); },
+    get name() {
+        const langId = getActiveLanguageId();
+        const loaded = getLoadedLanguageRunner(langId);
+        if (loaded) return loaded.name;
+        return getLanguageMetadata(langId)?.name || langId;
+    },
+
+    async isReady() {
+        const langId = getActiveLanguageId();
+        try {
+            const runner = await loadLanguageRunner(langId);
+            return runner.isReady();
+        } catch {
+            return false;
+        }
+    },
+
+    getInitError() {
+        const langId = getActiveLanguageId();
+        return getLoadedLanguageRunner(langId)?.getInitError?.() || null;
+    },
+
+    async run(userCode: string, testCode?: string) {
+        const langId = getActiveLanguageId();
+        const runner = await loadLanguageRunner(langId);
+        return runner.run(userCode, testCode);
+    },
+
+    terminate() {
+        const langId = getActiveLanguageId();
+        getLoadedLanguageRunner(langId)?.terminate?.();
+    },
 };

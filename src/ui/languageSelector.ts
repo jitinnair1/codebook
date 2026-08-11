@@ -1,5 +1,5 @@
 import { store } from '../core/store';
-import { getEnabledLanguages } from '../languages/registry';
+import { getEnabledLanguages } from '../languages/language-registry';
 import { Exercise } from '../core/types';
 
 export function renderLanguageSelector(container: HTMLElement, currentExercise: Exercise | undefined) {

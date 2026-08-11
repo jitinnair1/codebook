@@ -1,7 +1,7 @@
 import { StoreApi } from 'zustand/vanilla';
 import { AppState } from '../core/store';
 import { ICONS } from './icons';
-import { exercises } from '../exercises/registry';
+import { exercises } from '../exercises/exercise-registry';
 
 export function initNavigation(
     navPrev: HTMLButtonElement | null,

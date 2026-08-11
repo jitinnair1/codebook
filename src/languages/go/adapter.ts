@@ -4,6 +4,7 @@ class GoAdapter implements CodeRunner {
   name = 'go';
   private worker: Worker | null = null;
   private ready = false;
+  private initError: string | null = null;
   private pendingCallbacks = new Map<string, { resolve: (res: ExecutionResult) => void; timer: ReturnType<typeof setTimeout> }>();
   private requestIdCounter = 0;
 
@@ -28,6 +29,7 @@ class GoAdapter implements CodeRunner {
       this.worker.terminate();
     }
     this.ready = false;
+    this.initError = null;
     this.clearPendingCallbacks();
 
     this.worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
@@ -41,7 +43,7 @@ class GoAdapter implements CodeRunner {
 
       if (data?.type === 'INIT_ERROR') {
         console.error('[Go Worker Init Error]:', data.error);
-        this.ready = false;
+        this.initError = data.error || 'Failed to initialize Go runtime';
         return;
       }
 
@@ -61,6 +63,7 @@ class GoAdapter implements CodeRunner {
 
     this.worker.onerror = (err) => {
       console.error('[Go Worker Error]:', err);
+      this.initError = err.message || 'Worker thread error';
     };
   }
 
@@ -68,12 +71,39 @@ class GoAdapter implements CodeRunner {
     return this.ready;
   }
 
+  getInitError(): string | null {
+    return this.initError;
+  }
+
+  private async waitUntilReady(maxWaitMs = 15_000): Promise<boolean> {
+    if (this.ready) return true;
+    if (this.initError) return false;
+
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitMs) {
+      if (this.ready) return true;
+      if (this.initError) return false;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return this.ready;
+  }
+
   async run(userCode: string, testCode: string = ''): Promise<ExecutionResult> {
-    if (!this.worker || !this.ready) {
+    const isReadyNow = await this.waitUntilReady();
+
+    if (this.initError) {
       return {
         success: false,
         output: '',
-        error: 'Go execution worker is not ready.'
+        error: `Go runtime initialization failed: ${this.initError}`
+      };
+    }
+
+    if (!isReadyNow || !this.worker) {
+      return {
+        success: false,
+        output: '',
+        error: 'Go execution worker is still loading. Please try again in a few seconds.'
       };
     }
 

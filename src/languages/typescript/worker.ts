@@ -14,11 +14,15 @@ function transpileTs(code: string): string {
 let cleanHarness = '';
 try {
   cleanHarness = transpileTs(harness);
-} catch (err) {
-  console.error('[Harness Transpile Error]:', err);
+  self.postMessage({ type: 'READY' });
+} catch (err: any) {
+  const errorMsg = err?.message || String(err);
+  console.error('[Harness Transpile Error]:', errorMsg);
+  self.postMessage({
+    type: 'INIT_ERROR',
+    error: `Failed to initialize TypeScript harness: ${errorMsg}`
+  });
 }
-
-self.postMessage({ type: 'READY' });
 
 interface RunMessage {
   type: 'RUN';

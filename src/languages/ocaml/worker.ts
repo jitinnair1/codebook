@@ -32,14 +32,24 @@ async function loadRuntime(): Promise<void> {
         // which is required because js_of_ocaml emits `with()` statements.
         (0, eval)(script);
     } catch (e: any) {
-        console.error('[OCaml Worker] Failed to load runtime:', e);
+        const errorMsg = e?.message || String(e);
+        console.error('[OCaml Worker] Failed to load runtime:', errorMsg);
+        self.postMessage({
+            type: 'INIT_ERROR',
+            error: `Failed to load OCaml runtime script: ${errorMsg}`
+        });
         return;
     }
 
     if (getOCamlRuntime()) {
         self.postMessage({ type: 'READY' });
     } else {
-        console.error('[OCaml Worker] Runtime loaded but ocaml.run not found on globalThis');
+        const errorMsg = 'OCaml compiler runtime (ocaml.run) was not found after script execution';
+        console.error('[OCaml Worker]:', errorMsg);
+        self.postMessage({
+            type: 'INIT_ERROR',
+            error: errorMsg
+        });
     }
 }
 

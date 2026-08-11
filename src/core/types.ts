@@ -56,6 +56,7 @@ export type WorkerResponse = {
 export interface CodeRunner {
     name: string;
     isReady(): Promise<boolean>;
+    getInitError?(): string | null;
     run(userCode: string, testCode?: string): Promise<ExecutionResult>;
     terminate?(): void;
 }

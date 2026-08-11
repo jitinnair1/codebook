@@ -2,7 +2,7 @@ import { marked } from 'marked';
 import { EditorView } from 'codemirror';
 import { EditorState, Extension } from '@codemirror/state';
 import { getTheme } from '../ui/theme';
-import { getLanguageSyntax, defaultLanguageId } from '../languages/registry';
+import { getLanguageSyntax, defaultLanguageId } from '../languages/language-registry';
 
 export function configureMarkdown() {
     const renderer = {

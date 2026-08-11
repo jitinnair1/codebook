@@ -1,11 +1,21 @@
+import { transform } from 'sucrase';
 import harness from './harness.ts?raw';
 
-function stripTsTypes(code: string): string {
-  return code
-    .replace(/:\s*\[[^\]]+\](\[\])?/g, '')
-    .replace(/:\s*[\w<>]+(\[\])?/g, '')
-    .replace(/interface\s+\w+\s*\{[^}]*\}/g, '')
-    .replace(/type\s+\w+\s*=[^;]+;/g, '');
+function transpileTs(code: string): string {
+  if (!code.trim()) return '';
+  try {
+    return transform(code, { transforms: ['typescript'] }).code;
+  } catch (err) {
+    console.error('[TypeScript Transpile Error]:', err);
+    return code;
+  }
+}
+
+let cleanHarness = '';
+try {
+  cleanHarness = transpileTs(harness);
+} catch (err) {
+  console.error('[Harness Transpile Error]:', err);
 }
 
 self.postMessage({ type: 'READY' });
@@ -31,9 +41,8 @@ self.onmessage = (e: MessageEvent<RunMessage>) => {
   };
 
   try {
-    const cleanHarness = stripTsTypes(harness);
-    const cleanUserCode = stripTsTypes(userCode);
-    const cleanTestCode = stripTsTypes(testCode);
+    const cleanUserCode = transpileTs(userCode);
+    const cleanTestCode = transpileTs(testCode);
 
     const combinedCode = `
       ${cleanHarness}

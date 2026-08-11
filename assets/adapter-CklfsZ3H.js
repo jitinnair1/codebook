@@ -1,1 +1,0 @@
-import{t as e}from"./base-adapter-c2auC8ap.js";var t=new class extends e{name=`go`;getWorkerUrl(){return new URL(``+new URL(`worker-23YOkXwZ.ts`,import.meta.url).href,``+import.meta.url)}};export{t as default,t as runner};

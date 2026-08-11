@@ -5,6 +5,10 @@
 import harness from './harness.go?raw';
 import { createWorkerHandler } from '../base-worker';
 
+//JN: Go requires a separate function for cobining the harness, userCode and testCode because
+// go expects the imports to be at the same place in a single file for execution. Using Go AST
+// via WASM increases bundle size and is also slightly slower. If this becomes a bottleneck later
+// switching to the Go AST WASM might be better
 function combineGoCode(userCode: string, testCode: string, harnessCode: string): string {
   const allCodes = [userCode, testCode, harnessCode];
   const imports = new Set<string>();

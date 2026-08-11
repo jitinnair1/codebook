@@ -42,10 +42,10 @@ createWorkerHandler({
             };
         }
 
-        const fullCode = harness + '\n' + userCode + '\n' + testCode + ';;';
+        const combinedCode = harness + '\n' + userCode + '\n' + testCode + ';;';
 
         try {
-            const result = ocaml.run(fullCode);
+            const result = ocaml.run(combinedCode);
             const cleanOutput = (result.out || '').replace(/module Tests :[\s\S]*?end\n/g, '');
 
             return {

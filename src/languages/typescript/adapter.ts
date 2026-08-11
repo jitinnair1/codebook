@@ -3,8 +3,8 @@ import { BaseAdapter } from '../base-adapter';
 class TypeScriptAdapter extends BaseAdapter {
   name = 'typescript';
 
-  protected getWorkerUrl(): URL {
-    return new URL('./worker.ts', import.meta.url);
+  protected createWorker(): Worker {
+    return new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   }
 }
 

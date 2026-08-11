@@ -2,7 +2,7 @@ import type { CodeRunner, ExecutionResult } from '../core/types';
 
 export abstract class BaseAdapter implements CodeRunner {
   abstract name: string;
-  protected abstract getWorkerUrl(): URL;
+  protected abstract createWorker(): Worker;
 
   protected worker: Worker | null = null;
   protected ready = false;
@@ -37,7 +37,7 @@ export abstract class BaseAdapter implements CodeRunner {
     this.initError = null;
     this.clearPendingCallbacks();
 
-    this.worker = new Worker(this.getWorkerUrl(), { type: 'module' });
+    this.worker = this.createWorker();
 
     this.worker.onmessage = (e: MessageEvent) => {
       const data = e.data;

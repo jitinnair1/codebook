@@ -7,7 +7,8 @@ Every language lives in its own directory under `src/languages/<lang_id>/`:
 ```text
 src/languages/<lang_id>/
 ├── metadata.ts   # Language display name, ID, and file extension
-├── adapter.ts    # CodeRunner implementation (handles execution/Web Worker)
+├── adapter.ts    # BaseAdapter subclass connecting to worker
+├── worker.ts     # Worker script using createWorkerHandler
 └── syntax.ts     # (Optional) CodeMirror syntax highlighting definition
 ```
 
@@ -35,41 +36,45 @@ export default metadata;
 ```
 
 ### Step 3: Create `adapter.ts`
-Create `src/languages/python/adapter.ts` implementing the `CodeRunner` interface:
+Create `src/languages/python/adapter.ts` extending `BaseAdapter`:
 
 ```ts
-import type { CodeRunner, ExecutionResult } from '../../core/types';
+import { BaseAdapter } from '../base-adapter';
 
-export const runner: CodeRunner = {
-  name: 'python',
+class PythonAdapter extends BaseAdapter {
+  name = 'python';
 
-  async isReady(): Promise<boolean> {
-    // Return true when Web Worker / WASM runtime is initialized
-    return true;
-  },
-
-  async run(userCode: string, testCode: string = ""): Promise<ExecutionResult> {
-    try {
-      // Execute user code + test code using your Web Worker or engine
-      const output = "Execution output here...";
-      return {
-        success: true,
-        output
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        output: '',
-        error: err.message || String(err)
-      };
-    }
+  protected createWorker(): Worker {
+    return new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   }
-};
+}
 
+export const runner = new PythonAdapter();
 export default runner;
 ```
 
-### Step 4: Create `syntax.ts` 
+### Step 4: Create `worker.ts`
+Create `src/languages/python/worker.ts` using `createWorkerHandler`:
+
+```ts
+import { createWorkerHandler } from '../base-worker';
+
+createWorkerHandler({
+  async init() {
+    // Asynchronous WASM/runtime initialization
+  },
+
+  async execute(userCode: string, testCode: string = '') {
+    // Return ExecutionResult
+    return {
+      success: true,
+      output: 'Execution output...'
+    };
+  }
+});
+```
+
+### Step 5: Create `syntax.ts` 
 If your language needs CodeMirror syntax highlighting, create `src/languages/python/syntax.ts`:
 
 ```ts
@@ -81,7 +86,7 @@ export const syntaxExtension: Extension = StreamLanguage.define(python);
 export default syntaxExtension;
 ```
 
-### Step 5: Enable in `site.toml`
+### Step 6: Enable in `site.toml`
 Open `site.toml` in the project root and add your language ID to the `languages` array:
 
 ```toml

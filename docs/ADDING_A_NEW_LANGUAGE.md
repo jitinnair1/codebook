@@ -51,34 +51,20 @@ export default metadata;
 ```
 
 #### B. Execution Adapter (`src/languages/<lang_id>/adapter.ts`)
-Implements the `CodeRunner` interface to execute code (typically via Web Worker or WASM).
+Extends `BaseAdapter` from `../base-adapter` to manage worker lifecycle, postMessage execution requests, timeouts, and initialization status.
 
 ```ts
-import type { CodeRunner, ExecutionResult } from '../../core/types';
+import { BaseAdapter } from '../base-adapter';
 
-export const runner: CodeRunner = {
-  name: 'python',
+class PythonAdapter extends BaseAdapter {
+  name = 'python';
 
-  async isReady(): Promise<boolean> {
-    // Return true when Web Worker / WASM runtime is initialized
-    return true;
-  },
-
-  async run(userCode: string, testCode: string = ""): Promise<ExecutionResult> {
-    try {
-      // Execute combined user code and test suite
-      const output = "Execution output...";
-      return { success: true, output };
-    } catch (err: any) {
-      return {
-        success: false,
-        output: '',
-        error: err.message || String(err)
-      };
-    }
+  protected createWorker(): Worker {
+    return new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   }
-};
+}
 
+export const runner = new PythonAdapter();
 export default runner;
 ```
 
@@ -94,10 +80,28 @@ export const syntaxExtension: Extension = StreamLanguage.define(python);
 export default syntaxExtension;
 ```
 
-#### D. Web Worker & Static Assets *(If applicable)*
-If running code inside a Web Worker or using WASM/JS runtimes (e.g., Pyodide, Tree-sitter, etc.):
-- Place worker scripts in `src/languages/<lang_id>/worker.ts`.
-- Place large static binary assets (e.g., `.wasm`, standard library tars) in `public/` or bundle them via Vite worker imports.
+#### D. Web Worker & Static Assets (`src/languages/<lang_id>/worker.ts`)
+Implement the language execution logic using `createWorkerHandler` from `../base-worker`.
+
+```ts
+import { createWorkerHandler } from '../base-worker';
+
+createWorkerHandler({
+  async init() {
+    // Perform any asynchronous runtime/WASM initialization here
+  },
+
+  async execute(userCode: string, testCode: string = '') {
+    // Execute user code + test code and return ExecutionResult
+    return {
+      success: true,
+      output: 'Execution output...'
+    };
+  }
+});
+```
+
+Place any large static binary assets (e.g. `.wasm`, `.data` tars) in `public/` or import them into the worker script.
 
 ---
 
@@ -146,7 +150,8 @@ Static code blocks inside problem descriptions (`problem.md`) are highlighted vi
 
 - [ ] Enabled language ID in `site.toml` (`languages` array).
 - [ ] Created `src/languages/<lang_id>/metadata.ts`.
-- [ ] Created `src/languages/<lang_id>/adapter.ts`.
+- [ ] Created `src/languages/<lang_id>/adapter.ts` (extending `BaseAdapter`).
+- [ ] Created `src/languages/<lang_id>/worker.ts` (using `createWorkerHandler`).
 - [ ] Created `src/languages/<lang_id>/syntax.ts` (if applicable).
 - [ ] Added `<lang_id>/template.<ext>` and `<lang_id>/test.<ext>` inside relevant `src/exercises/<exercise_id>/` directories.
 - [ ] Updated `src/core/markdown.ts` if code snippets in `problem.md` use the new language identifier.

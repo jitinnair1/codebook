@@ -8,7 +8,7 @@ const Tests = {
     }
   },
 
-  equalCheck<T>(msg: string, expected: T, actual: T) {
+  equalCheck(msg: string, expected: any, actual: any) {
     if (expected === actual) {
       console.log(`Test passed: ${msg}`);
     } else {

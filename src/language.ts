@@ -3,23 +3,23 @@ import { loadLanguageRunner, getLoadedLanguageRunner, defaultLanguageId, getLang
 import type { CodeRunner } from './core/types';
 
 export function getActiveLanguageId(): string {
-    const { currentLanguageId } = store.getState();
-    return currentLanguageId || defaultLanguageId;
+    return store.getState().currentLanguageId || defaultLanguageId;
+}
+
+function getActiveLoadedRunner(): CodeRunner | null {
+    return getLoadedLanguageRunner(getActiveLanguageId());
 }
 
 // Proxy that delegates to the lazy-loaded runner for the active language.
 export const activeRunner: CodeRunner = {
     get name() {
-        const langId = getActiveLanguageId();
-        const loaded = getLoadedLanguageRunner(langId);
-        if (loaded) return loaded.name;
-        return getLanguageMetadata(langId)?.name || langId;
+        const id = getActiveLanguageId();
+        return getActiveLoadedRunner()?.name || getLanguageMetadata(id)?.name || id;
     },
 
     async isReady() {
-        const langId = getActiveLanguageId();
         try {
-            const runner = await loadLanguageRunner(langId);
+            const runner = await loadLanguageRunner(getActiveLanguageId());
             return runner.isReady();
         } catch {
             return false;
@@ -27,18 +27,15 @@ export const activeRunner: CodeRunner = {
     },
 
     getInitError() {
-        const langId = getActiveLanguageId();
-        return getLoadedLanguageRunner(langId)?.getInitError?.() || null;
+        return getActiveLoadedRunner()?.getInitError?.() || null;
     },
 
     async run(userCode: string, testCode?: string) {
-        const langId = getActiveLanguageId();
-        const runner = await loadLanguageRunner(langId);
+        const runner = await loadLanguageRunner(getActiveLanguageId());
         return runner.run(userCode, testCode);
     },
 
     terminate() {
-        const langId = getActiveLanguageId();
-        getLoadedLanguageRunner(langId)?.terminate?.();
+        getActiveLoadedRunner()?.terminate?.();
     },
 };

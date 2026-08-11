@@ -1,0 +1,1 @@
+import{t as e}from"./base-adapter-tFZ4sJX1.js";var t=new class extends e{name=`python`;createWorker(){return new Worker(new URL(``+new URL(`worker-DK-bDU3q.js`,import.meta.url).href,``+import.meta.url),{type:`module`})}};export{t as default,t as runner};

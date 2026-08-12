@@ -76,6 +76,26 @@ function yamlPlugin(): Plugin {
   };
 }
 
+const DEFAULT_SITE_CONFIG = {
+  title: "codebook",
+  subtitle: "by wrongfirst.dev",
+  logo_emoji: "📓",
+};
+
+function getSiteConfig(): Record<string, any> {
+  let tomlPath = resolve(import.meta.dirname, "site.toml");
+  if (!existsSync(tomlPath)) {
+    tomlPath = resolve(import.meta.dirname, "site.toml.example");
+  }
+  try {
+    const content = readFileSync(tomlPath, "utf-8");
+    return { ...DEFAULT_SITE_CONFIG, ...parse(content) };
+  } catch (e) {
+    console.error("[getSiteConfig] Failed to load site.toml:", e);
+    return { ...DEFAULT_SITE_CONFIG };
+  }
+}
+
 function tomlPlugin(): Plugin {
   const cache = new Map<string, string>();
 
@@ -98,9 +118,10 @@ function tomlPlugin(): Plugin {
     },
     load(id: string) {
       if (id.endsWith("__toml__")) {
-        let realPath = cache.get(id) || id.replace(/\0__toml__$/, "");
-        if (!existsSync(realPath) && realPath.endsWith("site.toml")) {
-          realPath = resolve(import.meta.dirname, "site.toml.example");
+        const realPath = cache.get(id) || id.replace(/\0__toml__$/, "");
+        if (realPath.endsWith("site.toml") || realPath.endsWith("site.toml.example")) {
+          const data = getSiteConfig();
+          return `export default ${JSON.stringify(data)};`;
         }
         try {
           const content = readFileSync(realPath, "utf-8");
@@ -121,24 +142,15 @@ function htmlMetaPlugin(): Plugin {
     name: "vite-html-meta",
     transformIndexHtml(html) {
       try {
-        let tomlPath = resolve(import.meta.dirname, "site.toml");
-        if (!existsSync(tomlPath)) {
-          tomlPath = resolve(import.meta.dirname, "site.toml.example");
-        }
-        const tomlContent = readFileSync(tomlPath, "utf-8");
-        const siteConfig = parse(tomlContent);
+        const siteConfig = getSiteConfig();
         const { title, subtitle, headline, description, keywords, og_image, logo_emoji } = siteConfig;
 
-        //JN: fallback to template values if the fileds are missing from site config toml
-        const resolvedTitle = title || "codebook";
-        const resolvedSubtitle = subtitle ?? "by wrongfirst.dev";
-        const resolvedLogo = logo_emoji || "📓";
-        const pageTitle = headline || (resolvedSubtitle ? `${resolvedTitle} | ${resolvedSubtitle}` : resolvedTitle);
+        const pageTitle = headline || (subtitle ? `${title} | ${subtitle}` : title);
 
         let res = html;
-        res = res.replace(/(<h1 id="header-title"[^>]*>).*?(<\/h1>)/s, `$1${resolvedTitle}$2`);
-        res = res.replace(/(<p id="header-subtitle"[^>]*>).*?(<\/p>)/s, `$1${resolvedSubtitle}$2`);
-        res = res.replace(/(<div [^>]*id="header-logo"[^>]*>).*?(<\/div>)/s, `$1${resolvedLogo}$2`);
+        res = res.replace(/(<h1 id="header-title"[^>]*>).*?(<\/h1>)/s, `$1${title}$2`);
+        res = res.replace(/(<p id="header-subtitle"[^>]*>).*?(<\/p>)/s, `$1${subtitle}$2`);
+        res = res.replace(/(<div [^>]*id="header-logo"[^>]*>).*?(<\/div>)/s, `$1${logo_emoji}$2`);
         res = res.replace(/<title>.*<\/title>/, `<title>${pageTitle}</title>`);
         res = res.replace("</head>", `  <meta property="og:title" content="${pageTitle}">\n</head>`);
         if (description) {

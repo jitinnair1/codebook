@@ -3,7 +3,7 @@
 
 # Site Title & Subtitle
 title = "codebook"
-subtitle = "interactive exercises"
+subtitle = "by wrongfirst.dev"
 
 # Language Configuration
 # `languages`: Array of globally enabled language IDs (matching folders under src/languages/<lang_id>)

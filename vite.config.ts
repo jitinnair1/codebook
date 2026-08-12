@@ -127,13 +127,20 @@ function htmlMetaPlugin(): Plugin {
         }
         const tomlContent = readFileSync(tomlPath, "utf-8");
         const siteConfig = parse(tomlContent);
-        const { headline, description, keywords, og_image } = siteConfig;
+        const { title, subtitle, headline, description, keywords, og_image, logo_emoji } = siteConfig;
+
+        //JN: fallback to template values if the fileds are missing from site config toml
+        const resolvedTitle = title || "codebook";
+        const resolvedSubtitle = subtitle ?? "interactive exercises";
+        const resolvedLogo = logo_emoji || "📓";
+        const pageTitle = headline || (resolvedSubtitle ? `${resolvedTitle} | ${resolvedSubtitle}` : resolvedTitle);
 
         let res = html;
-        if (headline) {
-          res = res.replace(/<title>.*<\/title>/, `<title>${headline}</title>`);
-          res = res.replace("</head>", `  <meta property="og:title" content="${headline}">\n</head>`);
-        }
+        res = res.replace(/(<h1 id="header-title"[^>]*>).*?(<\/h1>)/s, `$1${resolvedTitle}$2`);
+        res = res.replace(/(<p id="header-subtitle"[^>]*>).*?(<\/p>)/s, `$1${resolvedSubtitle}$2`);
+        res = res.replace(/(<div [^>]*id="header-logo"[^>]*>).*?(<\/div>)/s, `$1${resolvedLogo}$2`);
+        res = res.replace(/<title>.*<\/title>/, `<title>${pageTitle}</title>`);
+        res = res.replace("</head>", `  <meta property="og:title" content="${pageTitle}">\n</head>`);
         if (description) {
           res = res.replace("</head>", `  <meta name="description" content="${description}">\n</head>`);
           res = res.replace("</head>", `  <meta property="og:description" content="${description}">\n</head>`);

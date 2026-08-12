@@ -4,6 +4,7 @@ export interface WasiHarnessConfig {
   inputBytes?: Uint8Array;
   rawMode?: boolean;
   onOutput?: (text: string) => void;
+  virtualFS?: Record<string, string | Uint8Array>;
 }
 
 export interface WasiHarness {
@@ -34,11 +35,20 @@ export function createWasiHarness(config: WasiHarnessConfig = {}): WasiHarness {
   let exitCode = 0;
   let inputPos = 0;
 
+  interface OpenFile {
+    data: Uint8Array;
+    pos: number;
+  }
+
+  const openFiles = new Map<number, OpenFile>();
+  let nextFd = 4;
+
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
   const stdoutByteChunks: Uint8Array[] = [];
 
-  const decoder = new TextDecoder('utf-8');
+  const stdoutDecoder = new TextDecoder('utf-8');
+  const stderrDecoder = new TextDecoder('utf-8');
   const encoder = new TextEncoder();
 
   function getMemoryView(): DataView {
@@ -82,7 +92,8 @@ export function createWasiHarness(config: WasiHarnessConfig = {}): WasiHarness {
           if (fd === 1 && rawMode) {
             stdoutByteChunks.push(new Uint8Array(buf));
           } else {
-            const text = decoder.decode(buf, { stream: true });
+            const dec = fd === 2 ? stderrDecoder : stdoutDecoder;
+            const text = dec.decode(buf, { stream: true });
             writeText(fd, text);
           }
           totalWritten += len;
@@ -96,20 +107,42 @@ export function createWasiHarness(config: WasiHarnessConfig = {}): WasiHarness {
     },
 
     fd_read(fd: number, iovs: number, iovs_len: number, nread_ptr: number): number {
-      if (fd !== 0) return 8; // WASI_EBADF
       const view = getMemoryView();
       const bytes = getMemoryBytes();
       let totalRead = 0;
 
+      if (fd === 0) {
+        for (let i = 0; i < iovs_len; i++) {
+          const ptr = view.getUint32(iovs + i * 8, true);
+          const len = view.getUint32(iovs + i * 8 + 4, true);
+          const rem = inputBytes.length - inputPos;
+          if (rem <= 0) break;
+
+          const toCopy = Math.min(len, rem);
+          bytes.set(inputBytes.subarray(inputPos, inputPos + toCopy), ptr);
+          inputPos += toCopy;
+          totalRead += toCopy;
+          if (toCopy < len) break;
+        }
+
+        if (nread_ptr) {
+          view.setUint32(nread_ptr, totalRead, true);
+        }
+        return 0;
+      }
+
+      const file = openFiles.get(fd);
+      if (!file) return 8; // WASI_EBADF
+
       for (let i = 0; i < iovs_len; i++) {
         const ptr = view.getUint32(iovs + i * 8, true);
         const len = view.getUint32(iovs + i * 8 + 4, true);
-        const rem = inputBytes.length - inputPos;
+        const rem = file.data.length - file.pos;
         if (rem <= 0) break;
 
         const toCopy = Math.min(len, rem);
-        bytes.set(inputBytes.subarray(inputPos, inputPos + toCopy), ptr);
-        inputPos += toCopy;
+        bytes.set(file.data.subarray(file.pos, file.pos + toCopy), ptr);
+        file.pos += toCopy;
         totalRead += toCopy;
         if (toCopy < len) break;
       }
@@ -120,21 +153,46 @@ export function createWasiHarness(config: WasiHarnessConfig = {}): WasiHarness {
       return 0;
     },
 
-    fd_close() {
+    fd_close(fd: number): number {
+      if (openFiles.has(fd)) {
+        openFiles.delete(fd);
+      }
       return 0;
     },
 
-    fd_seek() {
+    fd_seek(fd: number, offset: bigint | number, whence: number, newoffset_ptr: number): number {
+      const file = openFiles.get(fd);
+      if (!file) return 8; // WASI_EBADF
+
+      const numOffset = Number(offset);
+      let newPos = file.pos;
+      if (whence === 0) {
+        newPos = numOffset;
+      } else if (whence === 1) {
+        newPos += numOffset;
+      } else if (whence === 2) {
+        newPos = file.data.length + numOffset;
+      }
+
+      newPos = Math.max(0, Math.min(file.data.length, newPos));
+      file.pos = newPos;
+
+      if (newoffset_ptr) {
+        const view = getMemoryView();
+        view.setBigUint64(newoffset_ptr, BigInt(newPos), true);
+      }
       return 0;
     },
 
     fd_fdstat_get(fd: number, stat_ptr: number): number {
       const view = getMemoryView();
-      // Set filetype: 2 = character device for stdio
-      view.setUint8(stat_ptr, fd <= 2 ? 2 : 4);
-      view.setUint16(stat_ptr + 2, 0, true); // flags
-      view.setBigUint64(stat_ptr + 8, BigInt(0xffffffff), true); // rights base
-      view.setBigUint64(stat_ptr + 16, BigInt(0xffffffff), true); // rights inheriting
+      let filetype = 4; // regular file
+      if (fd <= 2) filetype = 2; // character device
+      else if (fd === 3) filetype = 3; // directory
+      view.setUint8(stat_ptr, filetype);
+      view.setUint16(stat_ptr + 2, 0, true);
+      view.setBigUint64(stat_ptr + 8, BigInt(0xffffffff), true);
+      view.setBigUint64(stat_ptr + 16, BigInt(0xffffffff), true);
       return 0;
     },
 
@@ -142,12 +200,23 @@ export function createWasiHarness(config: WasiHarnessConfig = {}): WasiHarness {
       return 0;
     },
 
-    fd_prestat_get(): number {
-      return 8; // WASI_EBADF / WASI_ENOENT
+    fd_prestat_get(fd: number, prestat_ptr: number): number {
+      if (config.virtualFS && fd === 3) {
+        const view = getMemoryView();
+        view.setUint8(prestat_ptr, 0); // WASI_PREOPENTYPE_DIR = 0
+        view.setUint32(prestat_ptr + 4, 1, true); // dir name length ("/")
+        return 0;
+      }
+      return 8; // WASI_EBADF
     },
 
-    fd_prestat_dir_name(): number {
-      return 8;
+    fd_prestat_dir_name(fd: number, path_ptr: number, path_len: number): number {
+      if (config.virtualFS && fd === 3) {
+        const bytes = getMemoryBytes();
+        bytes.set(encoder.encode('.'), path_ptr);
+        return 0;
+      }
+      return 8; // WASI_EBADF
     },
 
     args_sizes_get(argc_ptr: number, argv_buf_size_ptr: number): number {
@@ -187,8 +256,36 @@ export function createWasiHarness(config: WasiHarnessConfig = {}): WasiHarness {
       return 0;
     },
 
-    path_open(): number {
-      return 44; // WASI_ENOENT
+    path_open(
+      dirfd: number,
+      dirflags: number,
+      path_ptr: number,
+      path_len: number,
+      oflags: number,
+      fs_rights_base: bigint,
+      fs_rights_inheriting: bigint,
+      fdflags: number,
+      opened_fd_ptr: number
+    ): number {
+      if (!config.virtualFS) return 44; // WASI_ENOENT
+
+      const bytes = getMemoryBytes();
+      const rawPath = stdoutDecoder.decode(bytes.subarray(path_ptr, path_ptr + path_len));
+      const normalizedPath = rawPath.replace(/^\.?\//, '');
+
+      const fileContent = config.virtualFS[rawPath] ?? config.virtualFS[normalizedPath] ?? config.virtualFS['/' + normalizedPath];
+
+      if (fileContent === undefined) {
+        return 44; // WASI_ENOENT
+      }
+
+      const data = typeof fileContent === 'string' ? encoder.encode(fileContent) : fileContent;
+      const fd = nextFd++;
+      openFiles.set(fd, { data, pos: 0 });
+
+      const view = getMemoryView();
+      view.setUint32(opened_fd_ptr, fd, true);
+      return 0;
     },
 
     clock_time_get(id: number, precision: bigint, time_ptr: number): number {
@@ -234,9 +331,17 @@ export function createWasiHarness(config: WasiHarnessConfig = {}): WasiHarness {
       memory = mem;
     },
     getStdoutText() {
+      const remaining = stdoutDecoder.decode();
+      if (remaining) {
+        writeText(1, remaining);
+      }
       return stdoutChunks.join('');
     },
     getStderrText() {
+      const remaining = stderrDecoder.decode();
+      if (remaining) {
+        writeText(2, remaining);
+      }
       return stderrChunks.join('');
     },
     getStdoutBytes() {

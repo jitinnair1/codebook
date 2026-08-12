@@ -1,39 +1,37 @@
 import compilerWasmUrl from './compiler.wasm?url';
-import assemblerWasmUrl from './assembler.wasm?url';
 import { createWasiHarness, WasiExitError } from './wasi-harness';
 
 let compilerModule: WebAssembly.Module | null = null;
-let assemblerModule: WebAssembly.Module | null = null;
 let loadPromise: Promise<void> | null = null;
 
 export async function initCompiler(): Promise<void> {
-  if (compilerModule && assemblerModule) return;
+  if (compilerModule) return;
   if (loadPromise) return loadPromise;
 
   loadPromise = (async () => {
-    const [compBuf, asmBuf] = await Promise.all([
-      fetch(compilerWasmUrl).then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status} fetching compiler.wasm`);
-        return r.arrayBuffer();
-      }),
-      fetch(assemblerWasmUrl).then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status} fetching assembler.wasm`);
-        return r.arrayBuffer();
-      })
-    ]);
+    const compBuf = await fetch(compilerWasmUrl).then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status} fetching compiler.wasm`);
+      return r.arrayBuffer();
+    });
 
     compilerModule = await WebAssembly.compile(compBuf);
-    assemblerModule = await WebAssembly.compile(asmBuf);
   })();
 
   return loadPromise;
 }
 
-export async function compileAndRunC(cSourceCode: string): Promise<{ success: boolean; output: string; error?: string }> {
+export interface CompileOptions {
+  virtualFS?: Record<string, string | Uint8Array>;
+}
+
+export async function compileAndRunC(
+  cSourceCode: string,
+  options?: CompileOptions
+): Promise<{ success: boolean; output: string; error?: string }> {
   await initCompiler();
 
-  if (!compilerModule || !assemblerModule) {
-    throw new Error('c2wasm compiler modules are not loaded.');
+  if (!compilerModule) {
+    throw new Error('c2wasm compiler module is not loaded.');
   }
 
   const encoder = new TextEncoder();
@@ -44,10 +42,9 @@ export async function compileAndRunC(cSourceCode: string): Promise<{ success: bo
     mode: 'buffer',
     args: ['c2wasm', '-b'],
     inputBytes,
-    rawMode: true
+    rawMode: true,
+    virtualFS: options?.virtualFS
   });
-
-  let compiledWasmBytes: Uint8Array | null = null;
 
   try {
     const instance = await WebAssembly.instantiate(compilerModule, compilerHarness.imports);
@@ -68,7 +65,7 @@ export async function compileAndRunC(cSourceCode: string): Promise<{ success: bo
     }
   }
 
-  compiledWasmBytes = compilerHarness.getStdoutBytes();
+  const compiledWasmBytes = compilerHarness.getStdoutBytes();
 
   if (!compiledWasmBytes || compiledWasmBytes.length === 0) {
     const compileErr = compilerHarness.getStderrText() || 'c2wasm emitted 0 bytes of WASM binary.';
@@ -82,11 +79,12 @@ export async function compileAndRunC(cSourceCode: string): Promise<{ success: bo
   // 2. Execute Generated WASM Binary in Browser
   const userHarness = createWasiHarness({
     mode: 'buffer',
-    args: ['program']
+    args: ['program'],
+    virtualFS: options?.virtualFS
   });
 
   try {
-    const userModule = await WebAssembly.compile(compiledWasmBytes.buffer as ArrayBuffer);
+    const userModule = await WebAssembly.compile(compiledWasmBytes as BufferSource);
     const userInstance = await WebAssembly.instantiate(userModule, userHarness.imports);
     userHarness.setMemory(userInstance.exports.memory as WebAssembly.Memory);
 

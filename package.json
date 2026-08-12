@@ -1,7 +1,5 @@
 {
-  "name": "codebook",
-  "version": "0.1.0",
-  "description": "in-browser interactive coding exercises",
+  "name": "app",
   "type": "module",
   "private": true,
   "scripts": {

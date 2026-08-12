@@ -38,10 +38,11 @@
 
   <!-- site header -->
   <header
-    class="h-14 border-b border-border-default bg-bg-surface flex items-center justify-between px-6 z-10 shrink-0">
+    class="h-14 border-b border-border-default bg-bg-surface flex items-center justify-between px-8 z-10 shrink-0">
     <a href="#" id="header-brand" class="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
 
-      <div class="text-[30px] opacity-80 flex items-center justify-start leading-none translate-y-[2px]" id="header-logo"></div>
+      <div class="text-[30px] opacity-80 flex items-center justify-start leading-none translate-y-[2px]"
+        id="header-logo"></div>
       <div class="flex flex-col justify-center gap-1.5">
         <!-- JN: These are injected by vite during build from site.toml -->
         <h1 id="header-title" class="font-bold text-fg-primary tracking-tight text-lg leading-none"></h1>
@@ -54,7 +55,7 @@
   <div class="flex-1 flex flex-col overflow-hidden relative">
 
     <!-- navigation -->
-    <nav class="flex h-12 border-b border-border-default bg-bg-surface items-center px-4 shrink-0">
+    <nav class="flex h-12 border-b border-border-default bg-bg-surface items-center px-8 shrink-0">
       <!-- left section -->
       <div class="flex items-center gap-4">
         <button id="sidebar-toggle" class="text-fg-muted hover:text-fg-primary transition-colors cursor-pointer"
@@ -130,7 +131,7 @@
       <nav id="sidebar-nav"
         class="absolute inset-y-0 left-0 z-50 w-64 bg-bg-surface border-r border-border-default hidden flex-col shadow-xl lg:static lg:flex lg:shadow-none">
         <div
-          class="h-10 px-4 flex justify-between items-center border-b border-border-default select-none shrink-0 bg-bg-surface order-first md:order-0">
+          class="h-10 px-8 flex justify-between items-center border-b border-border-default select-none shrink-0 bg-bg-surface order-first md:order-0">
           <span class="text-[10px] font-bold text-fg-muted uppercase tracking-wider">Exercises</span>
           <button id="reset-progress-btn"
             class="text-fg-muted hover:text-red-500 transition-colors p-1 rounded-md hover:bg-bg-app cursor-pointer"
@@ -138,12 +139,13 @@
             <!-- trash icon injected via js -->
           </button>
         </div>
-        <div id="sidebar-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+        <div id="sidebar-list" class="flex-1 overflow-y-auto py-2 space-y-1">
         </div>
       </nav>
 
       <!-- problem description (desktop) -->
-      <div id="ex-desc-desktop" class="hidden md:block order-1 md:order-0 w-full h-full md:w-1/2 lg:w-5/12 bg-bg-surface border-r
+      <div id="ex-desc-desktop"
+        class="hidden md:block order-1 md:order-0 w-full h-full md:w-1/2 lg:w-5/12 bg-bg-surface border-r
                  border-border-default overflow-y-auto relative p-8 pb-32 prose prose-invert prose-sm max-w-none">
       </div>
 

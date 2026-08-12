@@ -23,8 +23,8 @@ logo_emoji = "📓"
 
 # Meta & SEO
 headline = "codebook | in-browser programming exercises"
-description = "Interactive coding exercises in the browser."
-keywords = "codebook, interactive exercises, web-based compiler"
+description = "Interactive coding exercises in the browser. By wrongfirst.dev"
+keywords = "codebook, interactive exercises, web-based compiler, wrongfirst"
 
 # Open Graph Preview Image (uncomment to enable)
 # og_image = "/public/og_preview.png"

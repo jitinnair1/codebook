@@ -131,7 +131,7 @@ function htmlMetaPlugin(): Plugin {
 
         //JN: fallback to template values if the fileds are missing from site config toml
         const resolvedTitle = title || "codebook";
-        const resolvedSubtitle = subtitle ?? "interactive exercises";
+        const resolvedSubtitle = subtitle ?? "by wrongfirst.dev";
         const resolvedLogo = logo_emoji || "📓";
         const pageTitle = headline || (resolvedSubtitle ? `${resolvedTitle} | ${resolvedSubtitle}` : resolvedTitle);
 

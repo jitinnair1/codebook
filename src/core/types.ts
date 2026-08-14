@@ -56,10 +56,15 @@ export type WorkerResponse = {
     error?: string;
 };
 
+export type RunnerStatus = 'idle' | 'loading' | 'ready' | 'error';
+
 export interface CodeRunner {
     name: string;
+    getStatus?(): RunnerStatus;
     isReady(): Promise<boolean>;
+    whenReady?(): Promise<void>;
     getInitError?(): string | null;
+    subscribeStatus?(listener: (status: RunnerStatus, error?: string | null) => void): () => void;
     run(userCode: string, testCode?: string): Promise<ExecutionResult>;
     terminate?(): void;
 }

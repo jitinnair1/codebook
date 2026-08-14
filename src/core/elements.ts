@@ -16,6 +16,7 @@ export const elements = {
     editorConsolePanel: document.getElementById('editor-and-console-panel') as HTMLElement,
     console: document.getElementById('console-output') as HTMLElement,
     status: document.getElementById('status') as HTMLElement,
+    statusDot: document.getElementById('status-dot') as HTMLElement,
 
     //buttons
     runBtn: document.getElementById('run-btn') as HTMLButtonElement,

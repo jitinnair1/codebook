@@ -126,3 +126,27 @@ export function getLanguageSyntax(id: string): Extension | undefined {
 export function getAllDiscoveredLanguages(): LanguageMetadata[] {
   return Array.from(metadataMap.values());
 }
+
+let isPrewarming = false;
+
+export async function prewarmBackgroundLanguages(activeLangId?: string): Promise<void> {
+  if (isPrewarming) return;
+  isPrewarming = true;
+
+  const activeId = activeLangId || defaultLanguageId;
+  const otherLangIds = enabledLanguageIds.filter(id => id !== activeId);
+
+  for (const langId of otherLangIds) {
+    try {
+      const runner = await loadLanguageRunner(langId);
+      if (runner.whenReady) {
+        await runner.whenReady();
+      } else {
+        await runner.isReady();
+      }
+    } catch (err) {
+      console.warn(`[LanguageRegistry] Background pre-warm for '${langId}' deferred:`, err);
+    }
+  }
+}
+

@@ -25,7 +25,7 @@ import { initShortcuts } from './ui/shortcuts';
 import { initResetProgress } from './ui/resetProgress';
 import { initSettings } from './ui/settings';
 import { renderLanguageSelector } from './ui/languageSelector';
-import { getLanguageSyntax } from './languages/language-registry';
+import { getLanguageSyntax, prewarmBackgroundLanguages, loadLanguageRunner } from './languages/language-registry';
 
 //initialisation
 initBranding();
@@ -181,10 +181,32 @@ setupResize(elements.resize.dragVConsole, elements.resize.paneConsole, 'vertical
 
 
 //startup
-runner.waitForCompiler(); // Starts polling for compiler readiness
+runner.init(); // Subscribes to runtime status updates
 
 const initialId = window.location.hash.slice(1) || exercises[0].id;
 store.getState().setCurrent(initialId);
 
 //initial render
 render();
+
+//immediately boot the active language runner
+const activeLangId = store.getState().currentLanguageId;
+if (activeLangId) {
+    loadLanguageRunner(activeLangId).catch((err) => {
+        console.error(`[main] Failed to load active language runner '${activeLangId}':`, err);
+    });
+}
+
+//pre-warm remaining enabled languages in browser idle time
+const scheduleBackgroundPrewarm = () => {
+    const currentLang = store.getState().currentLanguageId;
+    prewarmBackgroundLanguages(currentLang).catch(() => { });
+};
+
+if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(scheduleBackgroundPrewarm, { timeout: 4000 });
+} else {
+    //for broswers that dont support requestIdleCallback
+    setTimeout(scheduleBackgroundPrewarm, 1200);
+}
+

@@ -17,14 +17,50 @@ class Orchestrator {
         this.setRunningState(false);
     }
 
+    init() {
+        if (activeRunner.subscribeStatus) {
+            activeRunner.subscribeStatus((runnerStatus, error) => {
+                if (runnerStatus === 'ready') {
+                    this.isReady = true;
+                    status.setReady();
+                    this.setRunningState(this.isRunning);
+                } else if (runnerStatus === 'loading') {
+                    this.isReady = false;
+                    const langName = activeRunner.name || 'runtime';
+                    const capitalizedLang = langName.charAt(0).toUpperCase() + langName.slice(1);
+                    status.setLoading(`Loading ${capitalizedLang}...`);
+                    this.setRunningState(this.isRunning);
+                } else if (runnerStatus === 'error') {
+                    this.isReady = false;
+                    status.setError();
+                    this.setRunningState(this.isRunning);
+                    if (!elements.console.textContent || elements.console.textContent === "// Ready...") {
+                        elements.console.textContent = `${activeRunner.name.toUpperCase()} runtime initialization failed:\n${error || 'Unknown error'}`;
+                    }
+                }
+            });
+        }
+    }
+
     async run() {
         if (this.isRunning) return;
 
-        //check if coderunner is ready
-        const ready = await activeRunner.isReady();
-        if (!ready) {
-            alert("Loading...");
-            return;
+        // If active runtime is still loading, gracefully await readiness instead of alerting
+        if (!this.isReady) {
+            const langName = activeRunner.name || 'runtime';
+            const capitalizedLang = langName.charAt(0).toUpperCase() + langName.slice(1);
+            status.setLoading(`Loading ${capitalizedLang}...`);
+            try {
+                if (activeRunner.whenReady) {
+                    await activeRunner.whenReady();
+                } else {
+                    const ready = await activeRunner.isReady();
+                    if (!ready) return;
+                }
+            } catch (err: any) {
+                this.handleError(err?.message || `Failed to initialize ${langName} runtime`);
+                return;
+            }
         }
 
         const { currentExerciseId, currentLanguageId, completedIds } = store.getState();
@@ -116,30 +152,6 @@ class Orchestrator {
             elements.runBtn.classList.remove("run-btn-fill");
             elements.runBtn.innerHTML = `<span>${ICONS.PLAY}</span><span>Run</span>`;
         }
-    }
-
-    waitForCompiler() {
-        const check = setInterval(async () => {
-            const initError = activeRunner.getInitError?.();
-            if (initError) {
-                this.isReady = false;
-                status.setError();
-                this.setRunningState(this.isRunning);
-                if (!elements.console.textContent || elements.console.textContent === "// Ready...") {
-                    elements.console.textContent = `${activeRunner.name.toUpperCase()} runtime initialization failed:\n${initError}`;
-                }
-                return;
-            }
-
-            const ready = await activeRunner.isReady();
-            if (ready !== this.isReady) {
-                this.isReady = ready;
-                if (ready) {
-                    status.setReady();
-                }
-                this.setRunningState(this.isRunning);
-            }
-        }, 500);
     }
 }
 

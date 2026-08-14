@@ -141,7 +141,20 @@ export async function runVerification(options: VerificationOptions = {}): Promis
 
   // Pre-warm distinct language runners concurrently
   const distinctLangs = Array.from(new Set(queue.map(q => q.languageId)));
-  await Promise.all(distinctLangs.map(lang => loadLanguageRunner(lang).catch(() => null)));
+  await Promise.all(
+    distinctLangs.map(async (lang) => {
+      try {
+        const runner = await loadLanguageRunner(lang);
+        if (runner.whenReady) {
+          await runner.whenReady();
+        } else {
+          await runner.isReady();
+        }
+      } catch {
+        // Runner errors will be reported on test execution
+      }
+    })
+  );
 
   const results: VerificationItemResult[] = [];
   const startOverall = performance.now();

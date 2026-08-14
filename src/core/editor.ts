@@ -3,8 +3,10 @@ import { basicSetup } from 'codemirror';
 import { EditorState, Compartment, Extension } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { autocompletion, acceptCompletion } from '@codemirror/autocomplete';
+import { vim } from '@replit/codemirror-vim';
 import { themeCompartment, getTheme } from '../ui/theme';
 import { showPopup } from '../ui/popup';
+import { store } from './store';
 
 let view: EditorView | null = null;
 let tabCount = 0;
@@ -14,11 +16,20 @@ let lastTabTime = 0;
 //the language syntax and theme. Compartments are dynamic slots for extensions (like syntax highlighting 
 //or theme) used to swap the configs dynamically.
 export const languageCompartment = new Compartment();
+export const vimCompartment = new Compartment();
 
 export function updateEditorLanguage(syntaxExtension?: Extension) {
     if (view) {
         view.dispatch({
             effects: languageCompartment.reconfigure(syntaxExtension || [])
+        });
+    }
+}
+
+export function updateEditorVimMode(enabled: boolean) {
+    if (view) {
+        view.dispatch({
+            effects: vimCompartment.reconfigure(enabled ? vim() : [])
         });
     }
 }
@@ -29,10 +40,12 @@ export function initEditor(initialCode: string, syntaxExtension?: Extension, onS
 
     if (!view) {
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isVim = store.getState().vimMode;
 
         const state = EditorState.create({
             doc: initialCode,
             extensions: [
+                vimCompartment.of(isVim ? vim() : []),
                 basicSetup,
                 autocompletion(),
                 keymap.of([
@@ -100,6 +113,7 @@ export function initEditor(initialCode: string, syntaxExtension?: Extension, onS
         });
     } else {
         updateEditorLanguage(syntaxExtension);
+        updateEditorVimMode(store.getState().vimMode);
         const currentCode = view.state.doc.toString();
         if (currentCode !== initialCode) {
             view.dispatch({

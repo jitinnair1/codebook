@@ -22,6 +22,7 @@ export const elements = {
     resetBtn: document.getElementById('reset-btn') as HTMLButtonElement,
     clearConsoleBtn: document.getElementById('clear-console-btn') as HTMLButtonElement,
     shortcutsBtn: document.getElementById('shortcuts-btn') as HTMLButtonElement,
+    settingsBtn: document.getElementById('settings-btn') as HTMLButtonElement,
     resetProgressBtn: document.getElementById('reset-progress-btn') as HTMLButtonElement,
     languageSelectorContainer: document.getElementById('language-selector-container') as HTMLElement,
 
@@ -30,6 +31,13 @@ export const elements = {
         modal: document.getElementById('shortcuts-modal') as HTMLElement,
         closeBtn: document.getElementById('close-shortcuts-btn') as HTMLButtonElement,
         list: document.getElementById('shortcuts-list') as HTMLElement,
+    },
+
+    //settings modal
+    settings: {
+        modal: document.getElementById('settings-modal') as HTMLElement,
+        closeBtn: document.getElementById('close-settings-btn') as HTMLButtonElement,
+        content: document.getElementById('settings-content') as HTMLElement,
     },
 
     //reset progress modal

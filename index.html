@@ -99,6 +99,11 @@
           title="Keyboard Shortcuts">
         </button>
 
+        <button id="settings-btn"
+          class="hidden md:block p-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-app rounded transition-colors cursor-pointer"
+          title="Settings">
+        </button>
+
         <button id="run-btn"
           class="bg-brand hover:opacity-90 text-white pl-3 pr-4 py-1.5 rounded text-sm font-semibold transition-opacity flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           disabled>
@@ -248,6 +253,24 @@
           </button>
         </div>
         <div id="shortcuts-list" class="space-y-3">
+          <!-- content injected via js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- settings modal -->
+    <div id="settings-modal"
+      class="hidden fixed inset-0 z-100 items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div
+        class="bg-bg-surface border border-border-default rounded-xl shadow-2xl p-6 w-full max-w-md relative flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-fg-primary">Settings</h2>
+          <button id="close-settings-btn"
+            class="text-fg-muted hover:text-fg-primary transition-colors p-1 rounded-md hover:bg-bg-app cursor-pointer">
+            <!-- close icon injected via js -->
+          </button>
+        </div>
+        <div id="settings-content" class="space-y-4">
           <!-- content injected via js -->
         </div>
       </div>

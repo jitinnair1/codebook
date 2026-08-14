@@ -23,12 +23,14 @@ import { resetEditorText } from './ui/resetEditorText';
 import { renderFooter } from './ui/footer';
 import { initShortcuts } from './ui/shortcuts';
 import { initResetProgress } from './ui/resetProgress';
+import { initSettings } from './ui/settings';
 import { renderLanguageSelector } from './ui/languageSelector';
 import { getLanguageMetadata, getLanguageSyntax } from './languages/language-registry';
 
 //initialisation
 initBranding();
 initShortcuts();
+initSettings();
 initResetProgress();
 renderFooter();
 configureMarkdown();
@@ -68,7 +70,6 @@ function render() {
     const isExerciseChanged = prevExerciseId !== null && currentExerciseId !== prevExerciseId;
     const isLanguageChanged = prevLanguageId !== null && currentLanguageId !== prevLanguageId;
 
-    // Update tracking variables before any state mutation that triggers subscribers
     lastRenderedExerciseId = currentExerciseId;
     lastRenderedLanguageId = currentLanguageId;
 

@@ -14,6 +14,8 @@ export interface AppState {
   userCode: Record<string, string>;
   saveUserCode: (exerciseId: string, languageId: string, code: string) => void;
   getUserCode: (exerciseId: string, languageId: string) => string | undefined;
+  vimMode: boolean;
+  setVimMode: (enabled: boolean) => void;
 }
 
 export const store = createStore<AppState>()(
@@ -24,6 +26,7 @@ export const store = createStore<AppState>()(
       currentLanguageId: defaultLanguageId,
       completedIds: [],
       userCode: {},
+      vimMode: false,
 
       //actions
       markComplete: (id) => {
@@ -46,7 +49,9 @@ export const store = createStore<AppState>()(
         const { userCode } = get();
         const key = `${exerciseId}:${languageId}`;
         return userCode[key] ?? userCode[exerciseId];
-      }
+      },
+
+      setVimMode: (enabled: boolean) => set({ vimMode: enabled }),
 
     }),
     {

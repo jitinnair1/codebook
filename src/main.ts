@@ -35,6 +35,11 @@ initResetProgress();
 renderFooter();
 configureMarkdown();
 
+//load speedrun modal only in dev environments
+if (import.meta.env.DEV) {
+    import('./ui/speedrunModal').then(m => m.initSpeedrunButton());
+}
+
 const switchTab = initTabs(
     elements.tabs.problem,
     elements.tabs.code,

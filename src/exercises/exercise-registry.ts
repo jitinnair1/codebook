@@ -1,5 +1,6 @@
 import curriculumConfig from './curriculum.yaml';
 import { Exercise, Chapter, LanguageVariant } from '../core/types';
+import { enabledLanguageIds } from '../languages/language-registry';
 
 // Discover all problem.md files dynamically
 const problemFiles = import.meta.glob<string>(
@@ -15,6 +16,11 @@ const templateFiles = import.meta.glob<string>(
 
 const testFiles = import.meta.glob<string>(
   './*/*/test.*',
+  { query: '?raw', import: 'default', eager: true }
+);
+
+const solutionFiles = import.meta.glob<string>(
+  './*/*/solution.*',
   { query: '?raw', import: 'default', eager: true }
 );
 
@@ -84,9 +90,14 @@ function attachDiscoveredVariants(chapterList: Chapter[]) {
     if (!match) continue;
     const [, folder, langId] = match;
 
+    if (!enabledLanguageIds.includes(langId)) continue;
+
     const initialCode = templateFiles[path] || '';
     const testPathKey = Object.keys(testFiles).find(p => p.startsWith(`./${folder}/${langId}/test.`));
     const testCode = testPathKey ? (testFiles[testPathKey] || '') : '';
+
+    const solutionPathKey = Object.keys(solutionFiles).find(p => p.startsWith(`./${folder}/${langId}/solution.`));
+    const solutionCode = solutionPathKey ? (solutionFiles[solutionPathKey] || '') : '';
 
     const validatorPathKey = Object.keys(validatorFiles).find(p => p === `./${folder}/${langId}/validator.ts`);
     const validatorMod = validatorPathKey ? validatorFiles[validatorPathKey] : undefined;
@@ -98,6 +109,7 @@ function attachDiscoveredVariants(chapterList: Chapter[]) {
     discoveredMap[folder][langId] = {
       initialCode,
       testCode,
+      ...(solutionCode ? { solutionCode } : {}),
       ...(validateFn ? { validate: validateFn } : {})
     };
   }

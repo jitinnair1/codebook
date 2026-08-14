@@ -22,6 +22,7 @@ export const elements = {
     resetBtn: document.getElementById('reset-btn') as HTMLButtonElement,
     clearConsoleBtn: document.getElementById('clear-console-btn') as HTMLButtonElement,
     shortcutsBtn: document.getElementById('shortcuts-btn') as HTMLButtonElement,
+    speedrunBtn: document.getElementById('speedrun-btn') as HTMLButtonElement,
     settingsBtn: document.getElementById('settings-btn') as HTMLButtonElement,
     resetProgressBtn: document.getElementById('reset-progress-btn') as HTMLButtonElement,
     languageSelectorContainer: document.getElementById('language-selector-container') as HTMLElement,
@@ -46,6 +47,27 @@ export const elements = {
         closeBtn: document.getElementById('close-reset-progress-btn') as HTMLButtonElement,
         cancelBtn: document.getElementById('cancel-reset-progress-btn') as HTMLButtonElement,
         confirmBtn: document.getElementById('confirm-reset-progress-btn') as HTMLButtonElement,
+    },
+
+    //speedrun modal (dev)
+    speedrun: {
+        modal: document.getElementById('speedrun-modal') as HTMLElement,
+        closeBtn: document.getElementById('close-speedrun-btn') as HTMLButtonElement,
+        headerIcon: document.getElementById('speedrun-header-icon') as HTMLElement,
+        langFilters: document.getElementById('speedrun-lang-filters') as HTMLElement,
+        startBtn: document.getElementById('speedrun-start-btn') as HTMLButtonElement,
+        progressContainer: document.getElementById('speedrun-progress-container') as HTMLElement,
+        progressBar: document.getElementById('speedrun-progress-bar') as HTMLElement,
+        progressStatus: document.getElementById('speedrun-progress-status') as HTMLElement,
+        progressCounter: document.getElementById('speedrun-progress-counter') as HTMLElement,
+        stats: {
+            passed: document.getElementById('stat-passed') as HTMLElement,
+            failed: document.getElementById('stat-failed') as HTMLElement,
+            errors: document.getElementById('stat-errors') as HTMLElement,
+            missing: document.getElementById('stat-missing') as HTMLElement,
+            time: document.getElementById('stat-time') as HTMLElement,
+        },
+        resultsList: document.getElementById('speedrun-results-list') as HTMLElement,
     },
 
     //navigation and tabs

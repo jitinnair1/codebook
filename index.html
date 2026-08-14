@@ -31,8 +31,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./favicon/favicon-16x16.png">
   <link rel="manifest" href="./favicon/site.webmanifest">
 
-  <script type="module" crossorigin src="./assets/index-INT2ho8w.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-Db9tOBaF.css">
+  <script type="module" crossorigin src="./assets/index-BtRB_F6k.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DA4MzUgm.css">
   <meta property="og:title" content="codebook | in-browser programming exercises">
   <meta name="description" content="Interactive coding exercises in the browser. By wrongfirst.dev">
   <meta property="og:description" content="Interactive coding exercises in the browser. By wrongfirst.dev">
@@ -102,6 +102,11 @@
         <button id="shortcuts-btn"
           class="hidden md:block p-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-app rounded transition-colors cursor-pointer"
           title="Keyboard Shortcuts">
+        </button>
+
+        <button id="speedrun-btn"
+          class="hidden p-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-app rounded transition-colors cursor-pointer"
+          title="Exercise Speedrunner (Dev)">
         </button>
 
         <button id="settings-btn"
@@ -277,6 +282,77 @@
         </div>
         <div id="settings-content" class="space-y-4">
           <!-- content injected via js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- speedrun modal (dev) -->
+    <div id="speedrun-modal"
+      class="hidden fixed inset-0 z-100 items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div
+        class="bg-bg-surface border border-border-default rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden text-fg-primary">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-border-default flex items-center justify-between shrink-0 bg-bg-surface">
+          <div class="flex items-center gap-3">
+            <div id="speedrun-header-icon" class="p-2 rounded-lg bg-brand/10 text-brand">
+              <!-- icon injected via js -->
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-fg-primary leading-tight flex items-center gap-2">
+                Exercise Speedrunner & Verifier
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-brand/15 text-brand font-mono uppercase tracking-wider font-semibold">Dev</span>
+              </h2>
+              <p class="text-xs text-fg-muted">Executes reference solutions across all curriculum exercises and runtimes.</p>
+            </div>
+          </div>
+          <button id="close-speedrun-btn"
+            class="text-fg-muted hover:text-fg-primary transition-colors p-1.5 rounded-lg hover:bg-bg-app cursor-pointer"
+            title="Close">
+            <!-- close icon injected via js -->
+          </button>
+        </div>
+
+        <!-- Controls and Filters -->
+        <div class="px-6 py-3 bg-bg-app border-b border-border-default flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-fg-muted uppercase tracking-wider">Language:</span>
+            <div id="speedrun-lang-filters" class="flex items-center gap-1.5 flex-wrap">
+              <!-- Filter buttons dynamically rendered -->
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="speedrun-start-btn"
+              class="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:opacity-90 rounded-md transition-all cursor-pointer flex items-center gap-1.5 shadow-sm">
+              <span>Start Speedrun</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div id="speedrun-progress-container"
+          class="hidden px-6 py-3 bg-bg-surface/50 border-b border-border-default shrink-0">
+          <div class="flex items-center justify-between text-xs text-fg-secondary mb-1.5 font-medium">
+            <span id="speedrun-progress-status">Ready</span>
+            <span id="speedrun-progress-counter">0 / 0</span>
+          </div>
+          <div class="w-full bg-border-default rounded-full h-2 overflow-hidden">
+            <div id="speedrun-progress-bar" class="bg-brand h-full w-0 transition-all duration-150"></div>
+          </div>
+          <div id="speedrun-stats" class="flex items-center gap-4 mt-2 text-xs">
+            <span class="text-green-500 font-medium" id="stat-passed">Passed: 0</span>
+            <span class="text-yellow-500 font-medium" id="stat-failed">Failed: 0</span>
+            <span class="text-red-500 font-medium" id="stat-errors">Errors: 0</span>
+            <span class="text-fg-muted font-medium" id="stat-missing">Missing: 0</span>
+            <span class="text-fg-muted ml-auto font-mono text-[11px]" id="stat-time">0.00s</span>
+          </div>
+        </div>
+
+        <!-- Results Stream / Log List -->
+        <div id="speedrun-results-list" class="flex-1 overflow-y-auto p-6 space-y-2.5 min-h-[220px]">
+          <div class="text-center py-12 text-fg-muted text-sm flex flex-col items-center gap-2">
+            <span>Click <strong>Start Speedrun</strong> to test all curriculum solutions against active runtimes.</span>
+          </div>
         </div>
       </div>
     </div>

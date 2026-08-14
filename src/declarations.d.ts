@@ -18,15 +18,5 @@ declare module "*.md" {
     export default value;
 }
 
-declare module "*.ml" {
-    const value: string;
-    export default value;
-}
-
-declare module "*.go" {
-    const value: string;
-    export default value;
-}
-
 declare module "*.css";
 

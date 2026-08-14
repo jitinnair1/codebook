@@ -24,8 +24,8 @@
 - ~~Add keyboard shortcuts~~
 - ~~Line by line `;;` vs once at the end of block appended manually?~~
 - ~~Add a footer with link to GithHub repo~~
-- Add Vim mode
-- Split Run and Submit buttons
+- ~~Add Vim mode~~
+- ~~Split Run and Submit buttons (wontfix)~~
 - Add (better) error reporting mechanism for users (than link to GH issues)
 - Footnotes and "important" or "pro tip" section in problem descriptions
 
@@ -34,7 +34,7 @@
 - Do an accessibility audit and fix issues (insufficient contrast, missing labels)
 - Remove any dependencies which could be implemented easily
 - Should the re-render on submit/navigating between exercises be refactored? Can this be done without using a complicated framework?
-- Extract the core code workbook to a code-agnostic, template repo
+- ~~Extract the core code workbook to a code-agnostic, template repo~~
 - What happens to existing completion status if the exercises numbers change? Should the version history be maintained?
 - Check for formatting issues with longer programs?
 - For C binding of the FFTW implementation project, would additional libraries be required? How will the logistics of this work?

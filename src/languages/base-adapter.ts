@@ -85,8 +85,9 @@ export abstract class BaseAdapter implements CodeRunner {
         console.error(`[${this.name} Worker Init Error]:`, data.error);
         this.ready = false;
         this.status = 'error';
-        this.initError = data.error || `Failed to initialize ${this.name} runtime`;
-        this.rejectReadyPromises(new Error(this.initError));
+        const errorMessage = data.error || `Failed to initialize ${this.name} runtime`;
+        this.initError = errorMessage;
+        this.rejectReadyPromises(new Error(errorMessage));
         this.notifyStatusListeners();
         return;
       }
@@ -109,8 +110,9 @@ export abstract class BaseAdapter implements CodeRunner {
       console.error(`[${this.name} Worker Error]:`, err);
       this.ready = false;
       this.status = 'error';
-      this.initError = err.message || 'Worker thread error';
-      this.rejectReadyPromises(new Error(this.initError));
+      const errorMessage = err.message || 'Worker thread error';
+      this.initError = errorMessage;
+      this.rejectReadyPromises(new Error(errorMessage));
       this.notifyStatusListeners();
     };
   }

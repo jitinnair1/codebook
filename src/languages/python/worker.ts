@@ -40,9 +40,19 @@ createWorkerHandler({
 
     const instance = await setupPyodide();
     const combinedCode = testCode ? `${harness}\n\n${userCode}\n\n${testCode}` : `${harness}\n\n${userCode}`;
+    const pyDict = typeof instance.globals?.get === 'function' ? instance.globals.get('dict')() : null;
 
+    //JN: the pyDict below is needed only for python since by default all executions will have a shared global scope
+    //this does not happen in other languages since in those there is a clear scope separation (each exercise runs in its own
+    //isolated scope)
     try {
-      await instance.runPythonAsync(combinedCode);
+      if (pyDict) {
+        //JN: the run happens is a single thread an no additional threads are used, but even then teh point of using async is to keep
+        //it usable for any await coming from the user's code or for bridging asyncio to JS promise queues
+        await instance.runPythonAsync(combinedCode, { globals: pyDict });
+      } else {
+        await instance.runPythonAsync(combinedCode);
+      }
       const output = stdoutLogs.join('\n');
       const errorStr = stderrLogs.join('\n');
 
@@ -57,6 +67,11 @@ createWorkerHandler({
         output: stdoutLogs.join('\n'),
         error: err?.message || String(err)
       };
+    } finally {
+      if (pyDict && typeof pyDict.destroy === 'function') {
+        pyDict.destroy();
+      }
     }
   }
 });
+

@@ -16,7 +16,7 @@
         else:
             print(f"Test failed: {msg}\\nExpected: {repr(expected)}\\nActual:   {repr(actual)}")
             raise Exception(f"Test failed: {msg}")
-`;let Z=null,Q=[],$=[];async function De(){return Z||(Z=await we({indexURL:`https://cdn.jsdelivr.net/pyodide/v314.0.3/full/`}),Z.setStdout({batched:e=>{Q.push(e)}}),Z.setStderr({batched:e=>{$.push(e)}})),Z}Te({async init(){await De()},async execute(e,t=``){Q.length=0,$.length=0;let n=await De(),r=t?`${Ee}\n\n${e}\n\n${t}`:`${Ee}\n\n${e}`;try{return await n.runPythonAsync(r),{success:!0,output:Q.join(`
+`;let Z=null,Q=[],$=[];async function De(){return Z||(Z=await we({indexURL:`https://cdn.jsdelivr.net/pyodide/v314.0.3/full/`}),Z.setStdout({batched:e=>{Q.push(e)}}),Z.setStderr({batched:e=>{$.push(e)}})),Z}Te({async init(){await De()},async execute(e,t=``){Q.length=0,$.length=0;let n=await De(),r=t?`${Ee}\n\n${e}\n\n${t}`:`${Ee}\n\n${e}`,i=typeof n.globals?.get==`function`?n.globals.get(`dict`)():null;try{return i?await n.runPythonAsync(r,{globals:i}):await n.runPythonAsync(r),{success:!0,output:Q.join(`
 `),error:$.join(`
 `)||void 0}}catch(e){return{success:!1,output:Q.join(`
-`),error:e?.message||String(e)}}}})})();
+`),error:e?.message||String(e)}}finally{i&&typeof i.destroy==`function`&&i.destroy()}}})})();

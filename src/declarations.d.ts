@@ -23,4 +23,10 @@ declare module "*.ml" {
     export default value;
 }
 
+declare module "*.go" {
+    const value: string;
+    export default value;
+}
+
 declare module "*.css";
+

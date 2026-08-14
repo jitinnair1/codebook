@@ -1,6 +1,6 @@
-// Primary Route: WASM Interpreter (yaegi.wasm)
-// Fallback Route: Go Playground Compile API
 import harness from './harness.go?raw';
+import wasmExecRaw from './wasm_exec.js?raw';
+import yaegiWasmUrl from './yaegi.wasm?url';
 import { createWorkerHandler } from '../base-worker';
 
 interface ParsedGoSnippet {
@@ -99,76 +99,47 @@ function combineGoCode(userCode: string, testCode: string): string {
 
 async function runWasmInterpreter(code: string): Promise<{ success: boolean; output: string; error?: string }> {
   if (typeof (self as any).yaegiEval === 'function') {
-    return (self as any).yaegiEval(code);
-  }
-  throw new Error('WASM interpreter binary (yaegi.wasm) is not loaded.');
-}
-
-async function runPlaygroundApi(code: string): Promise<{ success: boolean; output: string; error?: string }> {
-  const body = new URLSearchParams();
-  body.append('version', '2');
-  body.append('body', code);
-
-  const response = await fetch('https://play.golang.org/compile', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded; title=GoPlayground'
-    },
-    body: body.toString()
-  });
-
-  if (!response.ok) {
-    throw new Error(`Execution request failed with status ${response.status}`);
-  }
-
-  const resData = await response.json();
-
-  if (resData.Errors) {
+    const res = (self as any).yaegiEval(code);
     return {
-      success: false,
-      output: '',
-      error: resData.Errors
+      success: Boolean(res?.success),
+      output: res?.output || '',
+      error: res?.error || undefined
     };
   }
-
-  let output = '';
-  if (Array.isArray(resData.Events)) {
-    output = resData.Events.map((ev: { Message?: string }) => ev.Message || '').join('');
-  }
-
-  return {
-    success: true,
-    output
-  };
+  throw new Error('WASM interpreter binary (yaegi.wasm) is not loaded.');
 }
 
 createWorkerHandler({
   async init() {
     getCachedHarness();
-    if (typeof (self as any).initYaegi === 'function') {
-      await (self as any).initYaegi();
+
+    // 1. Evaluate wasm_exec.js into worker scope to define self.Go
+    (0, eval)(wasmExecRaw);
+
+    if (typeof (self as any).Go !== 'function') {
+      throw new Error('Failed to load Go WebAssembly bridge (Go constructor not found).');
+    }
+
+    const go = new (self as any).Go();
+
+    // 2. Fetch and instantiate yaegi.wasm
+    const response = await fetch(yaegiWasmUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to load yaegi.wasm: HTTP ${response.status}`);
+    }
+    const wasmBuffer = await response.arrayBuffer();
+    const wasmModule = await WebAssembly.instantiate(wasmBuffer, go.importObject);
+
+    // 3. Start Go main loop (which sets self.yaegiEval)
+    go.run(wasmModule.instance);
+
+    if (typeof (self as any).yaegiEval !== 'function') {
+      throw new Error('yaegiEval is not available after WebAssembly initialization.');
     }
   },
 
   async execute(userCode: string, testCode: string = '') {
     const combinedCode = combineGoCode(userCode, testCode);
-
-    // 1. Primary Route: Try In-Browser WASM Interpreter
-    try {
-      return await runWasmInterpreter(combinedCode);
-    } catch (wasmErr: any) {
-      console.log('[Go Worker]: Primary WASM route unavailable, attempting Playground API fallback:', wasmErr?.message);
-    }
-
-    // 2. Fallback Route: Go Playground API
-    try {
-      return await runPlaygroundApi(combinedCode);
-    } catch (apiErr: any) {
-      return {
-        success: false,
-        output: '',
-        error: apiErr?.message || String(apiErr)
-      };
-    }
+    return await runWasmInterpreter(combinedCode);
   }
 });

@@ -25,7 +25,7 @@ import { initShortcuts } from './ui/shortcuts';
 import { initResetProgress } from './ui/resetProgress';
 import { initSettings } from './ui/settings';
 import { renderLanguageSelector } from './ui/languageSelector';
-import { getLanguageMetadata, getLanguageSyntax } from './languages/language-registry';
+import { getLanguageSyntax } from './languages/language-registry';
 
 //initialisation
 initBranding();

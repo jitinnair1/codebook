@@ -40,6 +40,13 @@ export const elements = {
         modal: document.getElementById('settings-modal') as HTMLElement,
         closeBtn: document.getElementById('close-settings-btn') as HTMLButtonElement,
         content: document.getElementById('settings-content') as HTMLElement,
+        vimToggle: document.getElementById('vim-mode-toggle') as HTMLInputElement,
+        chatToggle: document.getElementById('chat-mode-toggle') as HTMLInputElement,
+        chatFields: document.getElementById('chat-settings-fields') as HTMLElement,
+        endpointSection: document.getElementById('chat-endpoint-section') as HTMLElement,
+        chatKeyContainer: document.getElementById('chat-key-container') as HTMLElement,
+        refreshModelsBtn: document.getElementById('refresh-models-btn') as HTMLButtonElement,
+        chatModelContainer: document.getElementById('chat-model-container') as HTMLElement,
     },
 
     //reset progress modal
@@ -98,5 +105,19 @@ export const elements = {
         logo: document.getElementById('header-logo') as HTMLElement,
         title: document.getElementById('header-title') as HTMLElement,
         subtitle: document.getElementById('header-subtitle') as HTMLElement,
-    }
+    },
+
+    //chat sidebar (Rubber Duck)
+    chat: {
+        btn: document.getElementById('chat-btn') as HTMLButtonElement,
+        sidebar: document.getElementById('chat-sidebar') as HTMLElement,
+        icon: document.getElementById('chat-sidebar-icon') as HTMLElement,
+        modelBadge: document.getElementById('chat-model-badge') as HTMLElement,
+        clearBtn: document.getElementById('chat-clear-btn') as HTMLButtonElement,
+        closeBtn: document.getElementById('chat-close-btn') as HTMLButtonElement,
+        messages: document.getElementById('chat-messages') as HTMLElement,
+        quickChips: document.getElementById('chat-quick-chips') as HTMLElement,
+        input: document.getElementById('chat-input') as HTMLTextAreaElement,
+        sendBtn: document.getElementById('chat-send-btn') as HTMLButtonElement,
+    },
 };

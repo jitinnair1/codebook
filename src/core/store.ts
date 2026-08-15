@@ -12,11 +12,21 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-export interface AISettings {
+export interface ChatEndpoint {
+  id: string;
+  name?: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface ChatSettings {
   enabled: boolean;
   baseUrl: string;
   apiKey: string;
   model: string;
+  selectedEndpointId: string;
+  endpoints: ChatEndpoint[];
 }
 
 export interface AppState {
@@ -31,19 +41,29 @@ export interface AppState {
   getUserCode: (exerciseId: string, languageId: string) => string | undefined;
   vimMode: boolean;
   setVimMode: (enabled: boolean) => void;
-  aiSettings: AISettings;
-  setAISettings: (settings: Partial<AISettings>) => void;
+  chatSettings: ChatSettings;
+  setChatSettings: (settings: Partial<ChatSettings>) => void;
   chatHistory: Record<string, ChatMessage[]>;
   addChatMessage: (exerciseId: string, message: ChatMessage) => void;
   clearChatHistory: (exerciseId: string) => void;
   resetProgress: () => void;
 }
 
-const defaultAISettings: AISettings = {
+const defaultChatSettings: ChatSettings = {
   enabled: false,
   baseUrl: 'https://api.openai.com/v1',
   apiKey: '',
-  model: 'gpt-4o-mini',
+  model: '',
+  selectedEndpointId: 'default-endpoint',
+  endpoints: [
+    {
+      id: 'default-endpoint',
+      name: 'OpenAI API',
+      baseUrl: 'https://api.openai.com/v1',
+      apiKey: '',
+      model: '',
+    },
+  ],
 };
 
 const encryptedStateStorage: StateStorage = {
@@ -52,8 +72,36 @@ const encryptedStateStorage: StateStorage = {
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw);
-      if (parsed?.state?.aiSettings?.apiKey) {
-        parsed.state.aiSettings.apiKey = await decryptSecret(parsed.state.aiSettings.apiKey);
+
+      // Migrate legacy aiSettings to chatSettings if present
+      if (parsed?.state?.aiSettings && !parsed?.state?.chatSettings) {
+        parsed.state.chatSettings = parsed.state.aiSettings;
+        delete parsed.state.aiSettings;
+      }
+
+      if (parsed?.state?.chatSettings) {
+        const cs = parsed.state.chatSettings;
+        if (cs.apiKey) {
+          cs.apiKey = await decryptSecret(cs.apiKey);
+        }
+        if (Array.isArray(cs.endpoints)) {
+          for (const ep of cs.endpoints) {
+            if (ep.apiKey) {
+              ep.apiKey = await decryptSecret(ep.apiKey);
+            }
+          }
+        } else {
+          // Initialize endpoints if absent
+          cs.endpoints = [
+            {
+              id: cs.selectedEndpointId || 'default-endpoint',
+              baseUrl: cs.baseUrl || 'https://api.openai.com/v1',
+              apiKey: cs.apiKey || '',
+              model: cs.model || '',
+            },
+          ];
+          cs.selectedEndpointId = cs.endpoints[0].id;
+        }
         return JSON.stringify(parsed);
       }
       return raw;
@@ -64,8 +112,20 @@ const encryptedStateStorage: StateStorage = {
   setItem: async (name: string, value: string): Promise<void> => {
     try {
       const parsed = JSON.parse(value);
-      if (parsed?.state?.aiSettings?.apiKey) {
-        parsed.state.aiSettings.apiKey = await encryptSecret(parsed.state.aiSettings.apiKey);
+      if (parsed?.state?.chatSettings) {
+        const cs = { ...parsed.state.chatSettings };
+        if (cs.apiKey) {
+          cs.apiKey = await encryptSecret(cs.apiKey);
+        }
+        if (Array.isArray(cs.endpoints)) {
+          cs.endpoints = await Promise.all(
+            cs.endpoints.map(async (ep: ChatEndpoint) => ({
+              ...ep,
+              apiKey: ep.apiKey ? await encryptSecret(ep.apiKey) : '',
+            }))
+          );
+        }
+        parsed.state.chatSettings = cs;
         localStorage.setItem(name, JSON.stringify(parsed));
         return;
       }
@@ -88,7 +148,7 @@ export const store = createStore<AppState>()(
       completedIds: [],
       userCode: {},
       vimMode: false,
-      aiSettings: defaultAISettings,
+      chatSettings: defaultChatSettings,
       chatHistory: {},
 
       //actions
@@ -116,13 +176,47 @@ export const store = createStore<AppState>()(
 
       setVimMode: (enabled: boolean) => set({ vimMode: enabled }),
 
-      setAISettings: (newSettings) => {
-        set({
-          aiSettings: {
-            ...get().aiSettings,
-            ...newSettings,
-          },
-        });
+      setChatSettings: (newSettings) => {
+        const current = get().chatSettings;
+        const updated: ChatSettings = {
+          ...current,
+          ...newSettings,
+        };
+
+        // Ensure endpoints array exists
+        if (!updated.endpoints || updated.endpoints.length === 0) {
+          updated.endpoints = [
+            {
+              id: updated.selectedEndpointId || 'default-endpoint',
+              baseUrl: updated.baseUrl || 'https://api.openai.com/v1',
+              apiKey: updated.apiKey || '',
+              model: updated.model || '',
+            },
+          ];
+        }
+
+        // If switching selected endpoint, pull its configuration into active fields
+        if (newSettings.selectedEndpointId && newSettings.selectedEndpointId !== current.selectedEndpointId) {
+          const target = updated.endpoints.find(e => e.id === newSettings.selectedEndpointId);
+          if (target) {
+            updated.baseUrl = target.baseUrl;
+            updated.apiKey = target.apiKey;
+            updated.model = target.model;
+          }
+        } else {
+          // If active fields changed, keep current endpoint in endpoints list in sync
+          const activeIndex = updated.endpoints.findIndex(e => e.id === updated.selectedEndpointId);
+          if (activeIndex >= 0) {
+            updated.endpoints[activeIndex] = {
+              ...updated.endpoints[activeIndex],
+              baseUrl: updated.baseUrl,
+              apiKey: updated.apiKey,
+              model: updated.model,
+            };
+          }
+        }
+
+        set({ chatSettings: updated });
       },
 
       addChatMessage: (exerciseId, message) => {

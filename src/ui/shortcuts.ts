@@ -1,5 +1,7 @@
 import { runner } from '../core/runner';
 import { elements } from '../core/elements';
+import { store } from '../core/store';
+import { toggleChatSidebar } from './chatSidebar';
 import { ICONS } from './icons';
 
 interface Shortcut {
@@ -16,6 +18,7 @@ const EDITOR_SHORTCUTS: Shortcut[] = [
 
 const NAVIGATION_SHORTCUTS: Shortcut[] = [
     { action: "Run Code", keys: ["Cmd/Ctrl", "Enter"] },
+    { action: "Toggle Rubber Duck", keys: ["Cmd/Ctrl", "Shift", "A"] },
     { action: "Previous Lesson", keys: ["Cmd/Ctrl", "["] },
     { action: "Next Lesson", keys: ["Cmd/Ctrl", "]"] },
     { action: "Show Shortcuts", keys: ["?", "or", "F1"] },
@@ -64,6 +67,17 @@ export function initShortcuts() {
             e.stopPropagation();
             if (!elements.runBtn.disabled) {
                 runner.run();
+            }
+            return;
+        }
+
+        // toggle Rubber Duck sidebar: Cmd/Ctrl + Shift + A
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'a' || e.key === 'A')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const cs = store.getState().chatSettings;
+            if (cs?.enabled) {
+                toggleChatSidebar();
             }
             return;
         }

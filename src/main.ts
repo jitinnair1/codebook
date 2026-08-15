@@ -24,6 +24,7 @@ import { renderFooter } from './ui/footer';
 import { initShortcuts } from './ui/shortcuts';
 import { initResetProgress } from './ui/resetProgress';
 import { initSettings } from './ui/settings';
+import { initChatSidebar } from './ui/chatSidebar';
 import { renderLanguageSelector } from './ui/languageSelector';
 import { getLanguageSyntax, prewarmBackgroundLanguages, loadLanguageRunner } from './languages/language-registry';
 
@@ -31,6 +32,7 @@ import { getLanguageSyntax, prewarmBackgroundLanguages, loadLanguageRunner } fro
 initBranding();
 initShortcuts();
 initSettings();
+initChatSidebar();
 initResetProgress();
 renderFooter();
 configureMarkdown();

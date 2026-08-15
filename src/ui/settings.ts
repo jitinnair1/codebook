@@ -1,5 +1,5 @@
 import { elements } from '../core/elements';
-import { store } from '../core/store';
+import { store, ChatSettings, ChatEndpoint } from '../core/store';
 import { updateEditorVimMode } from '../core/editor';
 import { ICONS } from './icons';
 
@@ -15,7 +15,11 @@ export function initSettings() {
         elements.settings.closeBtn.innerHTML = ICONS.CLOSE;
     }
 
-    renderSettings();
+    // Bind static event listeners once
+    bindStaticListeners();
+
+    // Initial sync of settings UI
+    syncSettingsUI();
 
     elements.settingsBtn?.addEventListener('click', openModal);
     elements.settings.closeBtn?.addEventListener('click', closeModal);
@@ -42,204 +46,273 @@ export function initSettings() {
     });
 }
 
-function renderSettings() {
-    if (!elements.settings.content) return;
-
-    const isVimEnabled = store.getState().vimMode;
-    const aiSettings = store.getState().aiSettings || {
-        enabled: false,
-        baseUrl: 'https://api.openai.com/v1',
-        apiKey: '',
-        model: 'gpt-4o-mini',
-    };
-
-    elements.settings.content.innerHTML = `
-        <div class="flex flex-col space-y-4">
-            <!-- Vim Mode -->
-            <div class="flex items-center justify-between py-3 border-b border-border-default">
-                <div class="flex flex-col pr-4">
-                    <span class="text-sm text-fg-primary font-medium">Enable Vim Mode</span>
-                    <span class="text-xs text-fg-muted">Use Vim keybindings in the code editor</span>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer select-none">
-                    <input type="checkbox" id="vim-mode-toggle" class="sr-only peer" ${isVimEnabled ? 'checked' : ''}>
-                    <div class="w-11 h-6 bg-border-default peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full
-                    peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5fter:bg-white 
-                    after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
-                </label>
-            </div>
-
-            <!-- AI Assistant Section -->
-            <div class="flex flex-col pt-1">
-                <div class="flex items-center justify-between py-2">
-                    <div class="flex flex-col pr-4">
-                        <span class="text-sm text-fg-primary font-medium">AI Pair Programmer</span>
-                        <span class="text-xs text-fg-muted">Context-aware Socratic mentor & reviewer</span>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer select-none">
-                        <input type="checkbox" id="ai-mode-toggle" class="sr-only peer" ${aiSettings.enabled ? 'checked' : ''}>
-                        <div class="w-11 h-6 bg-border-default peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
-                        peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white 
-                        after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
-                    </label>
-                </div>
-
-                <!-- Collapsible AI Settings -->
-                <div id="ai-settings-fields" class="space-y-3.5 pt-2 pb-1 ${aiSettings.enabled ? '' : 'hidden'}">
-                    <!-- Security Notice -->
-                    <div class="p-2.5 rounded-lg bg-bg-app border border-border-default text-[11px] text-fg-muted leading-relaxed">
-                        <span class="font-semibold text-fg-primary">🔒 Encrypted Storage:</span>
-                        API credentials are encrypted with Web Crypto (AES-GCM 256-bit) and sent directly to your configured endpoint.
-                    </div>
-
-                    <!-- Base URL -->
-                    <div class="flex flex-col space-y-1">
-                        <label for="ai-base-url" class="text-xs font-semibold text-fg-primary">
-                            API Base URL
-                        </label>
-                        <input type="text" id="ai-base-url"
-                            class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary
-                            placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
-                            placeholder="https://api.openai.com/v1"
-                            value="${aiSettings.baseUrl || ''}" />
-                        <span class="text-[10px] text-fg-muted">
-                            Works with any OpenAI-compatible API endpoints (including locally hosted models)
-                        </span>
-                    </div>
-
-                    <!-- API Key -->
-                    <div class="flex flex-col space-y-1">
-                        <div class="flex items-center justify-between">
-                            <label class="text-xs font-semibold text-fg-primary">
-                                API Key
-                            </label>
-                            <span class="text-[10px] text-fg-muted font-normal">Optional for local servers (Ollama, LM Studio)</span>
-                        </div>
-                        ${aiSettings.apiKey ? `
-                            <div class="flex items-center justify-between px-3 py-1.5 bg-bg-app border border-border-default rounded-md">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
-                                    <span class="text-xs font-mono text-fg-primary select-none">${formatMaskedKey(aiSettings.apiKey)}</span>
-                                    <span class="text-[10px] text-fg-muted font-sans">(Saved)</span>
-                                </div>
-                                <button type="button" id="clear-ai-key" class="text-xs text-red-400 hover:text-red-500 font-medium px-2 py-0.5 rounded 
-                                hover:bg-bg-surface transition-colors cursor-pointer" title="Delete API Key">
-                                    Delete
-                                </button>
-                            </div>
-                        ` : `
-                            <div class="relative flex items-center">
-                                <input type="password" id="ai-api-key"
-                                    autocomplete="off"
-                                    data-1p-ignore="true"
-                                    data-lpignore="true"
-                                    spellcheck="false"
-                                    class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary 
-                                    placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
-                                    placeholder="Paste API key (sk-...) or leave blank for local server"
-                                    value="" />
-                            </div>
-                            <span class="text-[10px] text-fg-muted">For local instances without authentication, you can leave this empty.</span>
-                        `}
-                    </div>
-
-                    <!-- Model Selection / Dropdown -->
-                    <div class="flex flex-col space-y-1.5 pt-1">
-                        <div class="flex items-center justify-between">
-                            <label class="text-xs font-semibold text-fg-primary">
-                                Model Selection
-                            </label>
-                            <button type="button" id="refresh-models-btn" class="text-[10px] text-fg-muted hover:text-fg-primary hover:underline
-                            cursor-pointer flex items-center gap-1">
-                                ↻ Refresh Models
-                            </button>
-                        </div>
-
-                        <div id="ai-model-container">
-                            ${renderModelSelectorContent(aiSettings)}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
+function bindStaticListeners() {
     // Vim toggle listener
-    const vimToggle = document.getElementById('vim-mode-toggle') as HTMLInputElement | null;
-    vimToggle?.addEventListener('change', (e) => {
+    elements.settings.vimToggle?.addEventListener('change', (e) => {
         const enabled = (e.target as HTMLInputElement).checked;
         store.getState().setVimMode(enabled);
         updateEditorVimMode(enabled);
     });
 
-    // AI toggle listener
-    const aiToggle = document.getElementById('ai-mode-toggle') as HTMLInputElement | null;
-    const aiFields = document.getElementById('ai-settings-fields');
-    aiToggle?.addEventListener('change', (e) => {
+    // Chat toggle listener
+    elements.settings.chatToggle?.addEventListener('change', (e) => {
         const enabled = (e.target as HTMLInputElement).checked;
-        store.getState().setAISettings({ enabled });
+        store.getState().setChatSettings({ enabled });
         if (enabled) {
-            aiFields?.classList.remove('hidden');
+            elements.settings.chatFields?.classList.remove('hidden');
             if (cachedModels.length === 0) {
                 triggerModelFetch();
             }
         } else {
-            aiFields?.classList.add('hidden');
+            elements.settings.chatFields?.classList.add('hidden');
         }
     });
 
-    // AI Base URL listener
-    const baseUrlInput = document.getElementById('ai-base-url') as HTMLInputElement | null;
-    baseUrlInput?.addEventListener('input', (e) => {
-        const newUrl = (e.target as HTMLInputElement).value.trim();
-        store.getState().setAISettings({ baseUrl: newUrl });
-    });
-    baseUrlInput?.addEventListener('change', () => {
+    // Refresh Models button
+    elements.settings.refreshModelsBtn?.addEventListener('click', () => {
         triggerModelFetch();
     });
+}
 
-    // AI API Key listener (save, switch to masked view, and fetch models for validation)
-    const apiKeyInput = document.getElementById('ai-api-key') as HTMLInputElement | null;
-    if (apiKeyInput) {
-        const saveKey = () => {
-            const val = apiKeyInput.value.trim();
-            if (val) {
-                store.getState().setAISettings({ apiKey: val });
-                renderSettings();
-                triggerModelFetch();
+function syncSettingsUI() {
+    const isVimEnabled = store.getState().vimMode;
+    const chatSettings = store.getState().chatSettings || {
+        enabled: false,
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: '',
+        model: '',
+        selectedEndpointId: 'default-endpoint',
+        endpoints: [
+            {
+                id: 'default-endpoint',
+                name: 'OpenAI API',
+                baseUrl: 'https://api.openai.com/v1',
+                apiKey: '',
+                model: '',
             }
-        };
+        ]
+    };
 
-        apiKeyInput.addEventListener('blur', saveKey);
-        apiKeyInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                saveKey();
-            }
-        });
+    if (elements.settings.vimToggle) {
+        elements.settings.vimToggle.checked = isVimEnabled;
     }
 
-    // Delete Key Button
-    const clearKeyBtn = document.getElementById('clear-ai-key') as HTMLButtonElement | null;
-    clearKeyBtn?.addEventListener('click', () => {
-        cachedModels = [];
-        modelFetchError = null;
-        store.getState().setAISettings({ apiKey: '' });
-        renderSettings();
+    if (elements.settings.chatToggle) {
+        elements.settings.chatToggle.checked = !!chatSettings.enabled;
+    }
+
+    if (elements.settings.chatFields) {
+        elements.settings.chatFields.classList.toggle('hidden', !chatSettings.enabled);
+    }
+
+    renderEndpointSelector(chatSettings);
+    renderKeyContainer(chatSettings);
+    renderModelSelector(chatSettings);
+}
+
+function renderEndpointSelector(chatSettings: ChatSettings) {
+    if (!elements.settings.endpointSection) return;
+
+    const endpoints = chatSettings.endpoints || [];
+    const selectedId = chatSettings.selectedEndpointId;
+    const canDelete = endpoints.length > 1;
+
+    elements.settings.endpointSection.innerHTML = `
+        <div class="flex flex-col space-y-1.5">
+            <div class="flex items-center justify-between">
+                <label for="chat-base-url" class="text-xs font-semibold text-fg-primary">
+                    API Endpoint &amp; Base URL
+                </label>
+                ${canDelete ? `
+                    <button type="button" id="chat-delete-endpoint-btn" class="text-[11px] text-red-400 hover:text-red-500 font-medium cursor-pointer transition-colors" title="Delete current endpoint">
+                        Delete
+                    </button>
+                ` : ''}
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-1.5">
+                <div class="relative sm:w-2/5 shrink-0">
+                    <select id="chat-endpoint-select"
+                        class="w-full px-2.5 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary focus:outline-none focus:border-brand appearance-none cursor-pointer pr-7 truncate"
+                        title="Saved Endpoint / Provider">
+                        ${endpoints.map(ep => `
+                            <option value="${escapeHtml(ep.id)}" ${ep.id === selectedId ? 'selected' : ''}>
+                                ${escapeHtml(ep.name || ep.baseUrl || 'Custom Endpoint')}
+                            </option>
+                        `).join('')}
+                        <option value="__add_new__">+ Add endpoint...</option>
+                    </select>
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-muted text-[9px]">
+                        ▼
+                    </div>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                    <input type="text" id="chat-base-url"
+                        class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
+                        placeholder="https://api.openai.com/v1"
+                        value="${escapeHtml(chatSettings.baseUrl || '')}" />
+                </div>
+            </div>
+
+            <span class="text-[10px] text-fg-muted">
+                OpenAI-compatible URL (e.g. https://api.openai.com/v1, http://localhost:11434/v1 for Ollama)
+            </span>
+        </div>
+    `;
+
+    attachEndpointListeners();
+}
+
+function attachEndpointListeners() {
+    const select = document.getElementById('chat-endpoint-select') as HTMLSelectElement | null;
+    const deleteBtn = document.getElementById('chat-delete-endpoint-btn') as HTMLButtonElement | null;
+    const urlInput = document.getElementById('chat-base-url') as HTMLInputElement | null;
+
+    select?.addEventListener('change', (e) => {
+        const val = (e.target as HTMLSelectElement).value;
+        if (val === '__add_new__') {
+            const newEp: ChatEndpoint = {
+                id: 'ep-' + Date.now(),
+                name: 'Custom Endpoint',
+                baseUrl: '',
+                apiKey: '',
+                model: '',
+            };
+            const cs = store.getState().chatSettings;
+            const updatedEndpoints = [...(cs.endpoints || []), newEp];
+            cachedModels = [];
+            modelFetchError = null;
+            store.getState().setChatSettings({
+                endpoints: updatedEndpoints,
+                selectedEndpointId: newEp.id,
+                baseUrl: '',
+                apiKey: '',
+                model: '',
+            });
+            syncSettingsUI();
+            setTimeout(() => {
+                const input = document.getElementById('chat-base-url') as HTMLInputElement | null;
+                input?.focus();
+            }, 50);
+        } else {
+            cachedModels = [];
+            modelFetchError = null;
+            store.getState().setChatSettings({
+                selectedEndpointId: val,
+            });
+            syncSettingsUI();
+            const cs = store.getState().chatSettings;
+            if (cs.baseUrl) {
+                triggerModelFetch();
+            }
+        }
     });
 
-    // Refresh Models button
-    const refreshBtn = document.getElementById('refresh-models-btn') as HTMLButtonElement | null;
-    refreshBtn?.addEventListener('click', () => {
+    deleteBtn?.addEventListener('click', () => {
+        const cs = store.getState().chatSettings;
+        if (cs.endpoints && cs.endpoints.length > 1) {
+            const updated = cs.endpoints.filter(ep => ep.id !== cs.selectedEndpointId);
+            const nextSelected = updated[0];
+            cachedModels = [];
+            modelFetchError = null;
+            store.getState().setChatSettings({
+                endpoints: updated,
+                selectedEndpointId: nextSelected.id,
+                baseUrl: nextSelected.baseUrl,
+                apiKey: nextSelected.apiKey,
+                model: nextSelected.model,
+            });
+            syncSettingsUI();
+            if (nextSelected.baseUrl) {
+                triggerModelFetch();
+            }
+        }
+    });
+
+    urlInput?.addEventListener('input', (e) => {
+        const newUrl = (e.target as HTMLInputElement).value.trim();
+        store.getState().setChatSettings({ baseUrl: newUrl });
+    });
+
+    urlInput?.addEventListener('change', () => {
         triggerModelFetch();
     });
+}
 
-    // Attach listeners for model select or fallback input
+function renderKeyContainer(chatSettings: { apiKey: string }) {
+    const container = elements.settings.chatKeyContainer;
+    if (!container) return;
+
+    if (chatSettings.apiKey) {
+        container.innerHTML = `
+            <div class="flex items-center justify-between px-3 py-1.5 bg-bg-app border border-border-default rounded-md">
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
+                    <span class="text-xs font-mono text-fg-primary select-none">${formatMaskedKey(chatSettings.apiKey)}</span>
+                    <span class="text-[10px] text-fg-muted font-sans">(Saved)</span>
+                </div>
+                <button type="button" id="clear-chat-key" class="text-xs text-red-400 hover:text-red-500 font-medium px-2 py-0.5 rounded 
+                hover:bg-bg-surface transition-colors cursor-pointer" title="Delete API Key">
+                    Delete
+                </button>
+            </div>
+        `;
+
+        const clearKeyBtn = document.getElementById('clear-chat-key') as HTMLButtonElement | null;
+        clearKeyBtn?.addEventListener('click', () => {
+            cachedModels = [];
+            modelFetchError = null;
+            store.getState().setChatSettings({ apiKey: '' });
+            syncSettingsUI();
+        });
+    } else {
+        container.innerHTML = `
+            <div class="relative flex items-center">
+                <input type="password" id="chat-api-key"
+                    autocomplete="off"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    spellcheck="false"
+                    class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary 
+                    placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
+                    placeholder="Paste API key (sk-...) or leave blank for local server"
+                    value="" />
+            </div>
+            <span class="text-[10px] text-fg-muted">For local instances without authentication, you can leave this empty.</span>
+        `;
+
+        const apiKeyInput = document.getElementById('chat-api-key') as HTMLInputElement | null;
+        if (apiKeyInput) {
+            const saveKey = () => {
+                const val = apiKeyInput.value.trim();
+                if (val) {
+                    store.getState().setChatSettings({ apiKey: val });
+                    syncSettingsUI();
+                    triggerModelFetch();
+                }
+            };
+
+            apiKeyInput.addEventListener('blur', saveKey);
+            apiKeyInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveKey();
+                }
+            });
+        }
+    }
+}
+
+function renderModelSelector(chatSettings: { apiKey: string; model: string; baseUrl: string }) {
+    const container = elements.settings.chatModelContainer;
+    if (!container) return;
+    container.innerHTML = getModelSelectorContent(chatSettings);
     attachModelInputListeners();
 }
 
-function renderModelSelectorContent(aiSettings: { apiKey: string; model: string; baseUrl: string }) {
-    if (!aiSettings.baseUrl) {
+function getModelSelectorContent(chatSettings: { apiKey: string; model: string; baseUrl: string }) {
+    if (!chatSettings.baseUrl) {
         return `<div class="text-[11px] text-fg-muted italic py-1">Enter your API Base URL above to load models.</div>`;
     }
 
@@ -260,22 +333,22 @@ function renderModelSelectorContent(aiSettings: { apiKey: string; model: string;
                 </div>
                 <div class="flex flex-col space-y-1">
                     <span class="text-[10px] text-fg-muted">Manual model name fallback:</span>
-                    <input type="text" id="ai-model-manual"
+                    <input type="text" id="chat-model-manual"
                         class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary font-mono focus:outline-none focus:border-brand"
-                        value="${escapeHtml(aiSettings.model || 'gpt-4o-mini')}" />
+                        value="${escapeHtml(chatSettings.model || '')}" />
                 </div>
             </div>
         `;
     }
 
     if (cachedModels.length > 0) {
-        const currentModel = aiSettings.model || cachedModels[0];
+        const currentModel = chatSettings.model || cachedModels[0];
         const isCustom = !cachedModels.includes(currentModel);
 
         return `
             <div class="space-y-1.5">
                 <div class="relative">
-                    <select id="ai-model-select"
+                    <select id="chat-model-select"
                         class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary focus:outline-none
                         focus:border-brand font-mono appearance-none cursor-pointer pr-8">
                         ${cachedModels.map(m => `
@@ -291,7 +364,7 @@ function renderModelSelectorContent(aiSettings: { apiKey: string; model: string;
                 </div>
 
                 <div id="custom-model-wrapper" class="${isCustom ? '' : 'hidden'} pt-1">
-                    <input type="text" id="ai-model-custom-input"
+                    <input type="text" id="chat-model-custom-input"
                         class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary placeholder:text-fg-muted
                         focus:outline-none focus:border-brand font-mono"
                         placeholder="Enter custom model identifier"
@@ -308,7 +381,7 @@ function renderModelSelectorContent(aiSettings: { apiKey: string; model: string;
     // Default before first fetch
     return `
         <div class="flex items-center justify-between py-1">
-            <span class="text-xs font-mono text-fg-primary">${escapeHtml(aiSettings.model || 'gpt-4o-mini')}</span>
+            <span class="text-xs font-mono text-fg-primary">${escapeHtml(chatSettings.model || '(No model selected)')}</span>
             <button type="button" id="fetch-now-btn" class="px-2.5 py-1 text-xs bg-bg-app border border-border-default hover:bg-border-default
             rounded text-fg-primary cursor-pointer">
                 Validate & Fetch Models
@@ -318,10 +391,10 @@ function renderModelSelectorContent(aiSettings: { apiKey: string; model: string;
 }
 
 function attachModelInputListeners() {
-    const select = document.getElementById('ai-model-select') as HTMLSelectElement | null;
+    const select = document.getElementById('chat-model-select') as HTMLSelectElement | null;
     const customWrapper = document.getElementById('custom-model-wrapper');
-    const customInput = document.getElementById('ai-model-custom-input') as HTMLInputElement | null;
-    const manualInput = document.getElementById('ai-model-manual') as HTMLInputElement | null;
+    const customInput = document.getElementById('chat-model-custom-input') as HTMLInputElement | null;
+    const manualInput = document.getElementById('chat-model-manual') as HTMLInputElement | null;
     const fetchNowBtn = document.getElementById('fetch-now-btn') as HTMLButtonElement | null;
 
     select?.addEventListener('change', (e) => {
@@ -331,21 +404,21 @@ function attachModelInputListeners() {
             customInput?.focus();
         } else {
             customWrapper?.classList.add('hidden');
-            store.getState().setAISettings({ model: val });
+            store.getState().setChatSettings({ model: val });
         }
     });
 
     customInput?.addEventListener('input', (e) => {
         const val = (e.target as HTMLInputElement).value.trim();
         if (val) {
-            store.getState().setAISettings({ model: val });
+            store.getState().setChatSettings({ model: val });
         }
     });
 
     manualInput?.addEventListener('input', (e) => {
         const val = (e.target as HTMLInputElement).value.trim();
         if (val) {
-            store.getState().setAISettings({ model: val });
+            store.getState().setChatSettings({ model: val });
         }
     });
 
@@ -355,12 +428,13 @@ function attachModelInputListeners() {
 }
 
 async function triggerModelFetch() {
-    const { baseUrl, apiKey } = store.getState().aiSettings;
+    const cs = store.getState().chatSettings;
+    const { baseUrl, apiKey } = cs;
     if (!baseUrl) return;
 
     isFetchingModels = true;
     modelFetchError = null;
-    renderSettings();
+    syncSettingsUI();
 
     const result = await fetchAvailableModels(baseUrl, apiKey);
     isFetchingModels = false;
@@ -368,19 +442,17 @@ async function triggerModelFetch() {
     if (result.success) {
         cachedModels = result.models;
         modelFetchError = null;
-        // If current model is not set or not in list, pick a smart default
-        const currentModel = store.getState().aiSettings.model;
+        // If current model is not set or not in list, pick the first model from the endpoint
+        const currentModel = store.getState().chatSettings.model;
         if (!currentModel || (!cachedModels.includes(currentModel) && cachedModels.length > 0)) {
-            // Find popular defaults or pick first
-            const preferred = cachedModels.find(m => m.includes('gpt-4o-mini') || m.includes('claude-3-5-sonnet') || m.includes('gemini-2.5-flash') || m.includes('llama3'));
-            store.getState().setAISettings({ model: preferred || cachedModels[0] });
+            store.getState().setChatSettings({ model: cachedModels[0] });
         }
     } else {
         cachedModels = [];
         modelFetchError = result.error || 'Failed to fetch models';
     }
 
-    renderSettings();
+    syncSettingsUI();
 }
 
 async function fetchAvailableModels(baseUrl: string, apiKey: string): Promise<{ success: boolean; models: string[]; error?: string }> {
@@ -455,11 +527,12 @@ async function fetchAvailableModels(baseUrl: string, apiKey: string): Promise<{ 
 }
 
 function openModal() {
-    renderSettings();
+    syncSettingsUI();
     elements.settings.modal?.classList.remove('hidden');
     elements.settings.modal?.classList.add('flex');
 
-    if (store.getState().aiSettings.apiKey && cachedModels.length === 0 && !isFetchingModels) {
+    const cs = store.getState().chatSettings;
+    if (cs.baseUrl && cachedModels.length === 0 && !isFetchingModels) {
         triggerModelFetch();
     }
 }

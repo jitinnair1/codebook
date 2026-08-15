@@ -1,8 +1,31 @@
 import { Marked } from 'marked';
+import DOMPurify, { type Config } from 'dompurify';
 import { EditorView } from 'codemirror';
 import { EditorState, Extension } from '@codemirror/state';
 import { getTheme } from '../ui/theme';
 import { getLanguageSyntax, defaultLanguageId } from '../languages/language-registry';
+
+// DOMPurify configuration: allow safe formatting tags, block scripts/iframes/forms/event handlers
+const PURIFY_CONFIG: Config = {
+    ALLOWED_TAGS: [
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'p', 'br', 'hr',
+        'ul', 'ol', 'li',
+        'blockquote', 'pre', 'code',
+        'a', 'img',
+        'strong', 'b', 'em', 'i', 'u', 's', 'del', 'sub', 'sup', 'mark',
+        'table', 'thead', 'tbody', 'tr', 'th', 'td',
+        'div', 'span',
+        'details', 'summary',
+        'button',  // for copy-code buttons rendered by chatMarked
+    ],
+    ALLOWED_ATTR: [
+        'href', 'target', 'rel', 'title', 'alt', 'src', 'loading',
+        'class', 'id', 'type',
+        'data-lang', 'data-chip-id',  // custom data attributes used by the app
+    ],
+    ALLOW_DATA_ATTR: false,  // block arbitrary data-* attributes except those explicitly listed
+};
 
 export function escapeHtml(str: string): string {
     return str
@@ -85,7 +108,8 @@ export function configureMarkdown() {
 }
 
 export const parseMarkdown = (text: string): string => {
-    return descMarked.parse(text) as string;
+    const raw = descMarked.parse(text) as string;
+    return DOMPurify.sanitize(raw, PURIFY_CONFIG);
 };
 
 /**
@@ -105,7 +129,8 @@ export function stripThoughtBlocks(text: string): string {
 export const parseChatMarkdown = (text: string): string => {
     const cleaned = stripThoughtBlocks(text);
     if (!cleaned) return '';
-    return chatMarked.parse(cleaned) as string;
+    const raw = chatMarked.parse(cleaned) as string;
+    return DOMPurify.sanitize(raw, PURIFY_CONFIG);
 };
 
 

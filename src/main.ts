@@ -4,7 +4,7 @@ import { store } from './core/store';
 import { exercises, curriculum } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
 import { loadExerciseCode, setEditorCode, updateEditorTheme } from './core/editor';
-import { configureMarkdown, parseMarkdown, highlightStaticBlocks } from './core/markdown';
+import { configureMarkdown, parseMarkdown, highlightStaticBlocks, escapeHtml } from './core/markdown';
 
 //module imports
 import { elements } from './core/elements';
@@ -27,6 +27,9 @@ import { initSettings } from './ui/settings';
 import { initChatPanel } from './ui/chatPanel';
 import { renderLanguageSelector } from './ui/languageSelector';
 import { getLanguageSyntax, prewarmBackgroundLanguages, loadLanguageRunner } from './languages/language-registry';
+
+// Freeze fetch to prevent monkey-patching by injected scripts (API key exfiltration defense)
+Object.defineProperty(window, 'fetch', { value: window.fetch, writable: false, configurable: false });
 
 //initialisation
 initBranding();
@@ -100,7 +103,7 @@ function render() {
     if (isInitial || isExerciseChanged || isLanguageChanged) {
         //render description
         const descHtml = parseMarkdown(currentEx.description);
-        const titleHtml = `<h1 class="text-3xl font-bold mb-6 text-fg-primary">${currentEx.id} ${currentEx.title}</h1>`;
+        const titleHtml = `<h1 class="text-3xl font-bold mb-6 text-fg-primary">${escapeHtml(currentEx.id)} ${escapeHtml(currentEx.title)}</h1>`;
         const fullContent = titleHtml + descHtml;
 
         if (elements.description.desktop) elements.description.desktop.innerHTML = fullContent;

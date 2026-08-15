@@ -45,7 +45,7 @@ if (import.meta.env.DEV) {
 const switchTab = initTabs(
     elements.tabs.problem,
     elements.tabs.code,
-    elements.description.mobile,
+    elements.problemAndChatPanel,
     elements.editorConsolePanel
 );
 

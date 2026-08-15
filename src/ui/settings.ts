@@ -1,3 +1,4 @@
+//TODO: Are there portions here that can be pushed off to index.html?
 import { elements } from '../core/elements';
 import { store, ChatSettings, ChatEndpoint } from '../core/store';
 import { updateEditorVimMode } from '../core/editor';
@@ -6,6 +7,7 @@ import { ICONS } from './icons';
 let cachedModels: string[] = [];
 let isFetchingModels = false;
 let modelFetchError: string | null = null;
+let isDetailsExpanded = false;
 
 export function initSettings() {
     if (elements.settingsBtn) {
@@ -25,7 +27,11 @@ export function initSettings() {
     store.subscribe(() => {
         const modal = elements.settings.modal;
         if (modal && !modal.classList.contains('hidden')) {
-            syncSettingsUI();
+            const activeEl = document.activeElement;
+            const isEditing = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
+            if (!isEditing) {
+                syncSettingsUI();
+            }
         }
     });
 
@@ -123,100 +129,255 @@ function renderEndpointSelector(chatSettings: ChatSettings) {
 
     const endpoints = chatSettings.endpoints || [];
     const selectedId = chatSettings.selectedEndpointId;
+    const currentEndpoint = endpoints.find(ep => ep.id === selectedId) || endpoints[0];
     const canDelete = endpoints.length > 1;
 
     elements.settings.endpointSection.innerHTML = `
         <div class="flex flex-col space-y-1.5">
+            <!-- Saved Endpoint Selection Header -->
             <div class="flex items-center justify-between">
-                <label for="chat-base-url" class="text-xs font-semibold text-fg-primary">
-                    API Endpoint &amp; Base URL
+                <label for="chat-endpoint-combobox-input" class="text-xs font-semibold text-fg-primary">
+                    Saved Endpoint
                 </label>
-                ${canDelete ? `
-                    <button type="button" id="chat-delete-endpoint-btn" class="text-[11px] text-red-400 hover:text-red-500 font-medium cursor-pointer transition-colors" title="Delete current endpoint">
-                        Delete
+                <div class="flex items-center gap-2">
+                    <button type="button" id="chat-add-endpoint-btn" class="text-[11px] text-brand hover:underline font-medium cursor-pointer transition-colors" title="Add a new endpoint">
+                        + Add Endpoint
                     </button>
-                ` : ''}
+                    ${canDelete ? `
+                        <span class="text-border-default text-xs select-none">|</span>
+                        <button type="button" id="chat-delete-endpoint-btn" class="text-[11px] text-red-400 hover:text-red-500 font-medium cursor-pointer transition-colors" title="Delete current endpoint">
+                            Delete
+                        </button>
+                    ` : ''}
+                </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-1.5">
-                <div class="relative sm:w-2/5 shrink-0">
-                    <select id="chat-endpoint-select"
-                        class="w-full px-2.5 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary focus:outline-none focus:border-brand appearance-none cursor-pointer pr-7 truncate"
-                        title="Saved Endpoint / Provider">
-                        ${endpoints.map(ep => `
-                            <option value="${escapeHtml(ep.id)}" ${ep.id === selectedId ? 'selected' : ''}>
-                                ${escapeHtml(ep.name || ep.baseUrl || 'Custom Endpoint')}
-                            </option>
-                        `).join('')}
-                        <option value="__add_new__">+ Add endpoint...</option>
-                    </select>
-                    <div class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-fg-muted text-[9px]">
-                        ▼
+            <!-- Combobox: Editable Name Input + Saved Endpoint Dropdown -->
+            <div class="relative" id="chat-endpoint-combobox-wrapper">
+                <div class="relative flex items-center">
+                    <button type="button" id="chat-endpoint-combobox-toggle"
+                        class="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-muted hover:text-fg-primary rounded cursor-pointer transition-colors z-10 flex items-center justify-center p-0"
+                        title="Show saved endpoints">
+                        <span id="combobox-arrow" class="inline-flex items-center justify-center transition-transform duration-150">${ICONS.CHEVRON_DOWN}</span>
+                    </button>
+                    <input type="text" id="chat-endpoint-combobox-input"
+                        class="w-full pl-7 pr-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
+                        placeholder="Endpoint name (e.g. OpenAI API, Local Ollama)"
+                        value="${escapeHtml(currentEndpoint?.name || '')}"
+                        autocomplete="off"
+                        title="Type to rename, click arrow to switch" />
+                </div>
+
+                <!-- Combobox Dropdown Menu -->
+                <div id="chat-endpoint-combobox-menu"
+                    class="hidden absolute left-0 right-0 top-full mt-1 bg-bg-surface border border-border-default rounded-md shadow-xl z-50 max-h-48 overflow-y-auto py-1 text-xs">
+                    ${endpoints.map(ep => `
+                        <div class="combobox-endpoint-item px-3 py-1.5 hover:bg-bg-app cursor-pointer flex items-center justify-between text-fg-primary ${ep.id === selectedId ? 'bg-brand/10 font-medium text-brand' : ''}"
+                            data-endpoint-id="${escapeHtml(ep.id)}">
+                            <span class="truncate endpoint-item-label">${escapeHtml(ep.name || ep.baseUrl || 'Unnamed Endpoint')}</span>
+                            ${ep.id === selectedId ? '<span class="text-[10px] text-brand ml-2 shrink-0">✓</span>' : ''}
+                        </div>
+                    `).join('')}
+                    <div class="border-t border-border-default my-1"></div>
+                    <div id="combobox-add-new-option" class="px-3 py-1.5 hover:bg-bg-app cursor-pointer text-brand font-medium flex items-center gap-1.5">
+                        <span class="text-xs">+</span>
+                        <span>Add new endpoint...</span>
                     </div>
                 </div>
-
-                <div class="flex-1 min-w-0">
-                    <input type="text" id="chat-base-url"
-                        class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
-                        placeholder="https://api.openai.com/v1"
-                        value="${escapeHtml(chatSettings.baseUrl || '')}" />
-                </div>
             </div>
 
-            <span class="text-[10px] text-fg-muted">
-                OpenAI-compatible URL (e.g. https://api.openai.com/v1, http://localhost:11434/v1 for Ollama)
-            </span>
+            <!-- Toggle Details Button (Minimal) -->
+            <div>
+                <button type="button" id="toggle-endpoint-details-btn"
+                    class="text-[10px] text-fg-muted hover:text-fg-primary inline-flex items-center gap-1 transition-colors cursor-pointer select-none py-0.5">
+                    <span id="toggle-details-chevron" class="inline-flex items-center justify-center transition-transform duration-150 ${isDetailsExpanded ? 'rotate-90' : ''}">
+                        ${ICONS.CHEVRON_RIGHT}
+                    </span>
+                    <span id="toggle-endpoint-details-label">${isDetailsExpanded ? 'Hide URL & API key' : 'Edit URL & API key'}</span>
+                </button>
+            </div>
+
+            <!-- Collapsible Configuration Card (Base URL & API Key) -->
+            <div id="endpoint-details-panel" class="${isDetailsExpanded ? 'flex' : 'hidden'} flex-col space-y-2.5 p-2.5 rounded-lg bg-bg-app/40 border border-border-default/60">
+                <!-- Base URL -->
+                <div class="flex flex-col space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label for="chat-base-url" class="text-[10px] font-medium text-fg-secondary">
+                            Base URL
+                        </label>
+                        <span class="text-[9px] text-fg-muted font-normal">OpenAI-compatible</span>
+                    </div>
+                    <input type="text" id="chat-base-url"
+                        class="w-full px-2.5 py-1 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
+                        placeholder="https://api.openai.com/v1"
+                        value="${escapeHtml(chatSettings.baseUrl || '')}" />
+                    <span class="text-[9px] text-fg-muted leading-tight">
+                        e.g. https://api.openai.com/v1, http://localhost:11434/v1 (Ollama)
+                    </span>
+                </div>
+
+                <!-- API Key -->
+                <div class="flex flex-col space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-medium text-fg-secondary">
+                            API Key
+                        </label>
+                        <span class="text-[9px] text-fg-muted font-normal">Optional for local servers</span>
+                    </div>
+                    <div id="chat-key-container">
+                        <!-- rendered by renderKeyContainer -->
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
     attachEndpointListeners();
 }
 
+function addNewEndpoint() {
+    isDetailsExpanded = true;
+    const cs = store.getState().chatSettings;
+    const endpoints = cs.endpoints || [];
+    const newEp: ChatEndpoint = {
+        id: 'ep-' + Date.now(),
+        name: `Endpoint ${endpoints.length + 1}`,
+        baseUrl: '',
+        apiKey: '',
+        model: '',
+    };
+    const updatedEndpoints = [...endpoints, newEp];
+    cachedModels = [];
+    modelFetchError = null;
+    store.getState().setChatSettings({
+        endpoints: updatedEndpoints,
+        selectedEndpointId: newEp.id,
+        baseUrl: '',
+        apiKey: '',
+        model: '',
+    });
+    syncSettingsUI();
+    setTimeout(() => {
+        const comboboxInput = document.getElementById('chat-endpoint-combobox-input') as HTMLInputElement | null;
+        if (comboboxInput) {
+            comboboxInput.focus();
+            comboboxInput.select();
+        }
+    }, 50);
+}
+
 function attachEndpointListeners() {
-    const select = document.getElementById('chat-endpoint-select') as HTMLSelectElement | null;
+    const wrapper = document.getElementById('chat-endpoint-combobox-wrapper');
+    const input = document.getElementById('chat-endpoint-combobox-input') as HTMLInputElement | null;
+    const toggleBtn = document.getElementById('chat-endpoint-combobox-toggle') as HTMLButtonElement | null;
+    const menu = document.getElementById('chat-endpoint-combobox-menu') as HTMLElement | null;
+    const arrow = document.getElementById('combobox-arrow') as HTMLElement | null;
+    const addBtn = document.getElementById('chat-add-endpoint-btn') as HTMLButtonElement | null;
+    const addNewOption = document.getElementById('combobox-add-new-option') as HTMLElement | null;
     const deleteBtn = document.getElementById('chat-delete-endpoint-btn') as HTMLButtonElement | null;
+    const toggleDetailsBtn = document.getElementById('toggle-endpoint-details-btn') as HTMLButtonElement | null;
     const urlInput = document.getElementById('chat-base-url') as HTMLInputElement | null;
 
-    select?.addEventListener('change', (e) => {
-        const val = (e.target as HTMLSelectElement).value;
-        if (val === '__add_new__') {
-            const newEp: ChatEndpoint = {
-                id: 'ep-' + Date.now(),
-                name: 'Custom Endpoint',
-                baseUrl: '',
-                apiKey: '',
-                model: '',
-            };
-            const cs = store.getState().chatSettings;
-            const updatedEndpoints = [...(cs.endpoints || []), newEp];
-            cachedModels = [];
-            modelFetchError = null;
-            store.getState().setChatSettings({
-                endpoints: updatedEndpoints,
-                selectedEndpointId: newEp.id,
-                baseUrl: '',
-                apiKey: '',
-                model: '',
-            });
-            syncSettingsUI();
-            setTimeout(() => {
-                const input = document.getElementById('chat-base-url') as HTMLInputElement | null;
-                input?.focus();
-            }, 50);
+    const openMenu = () => {
+        menu?.classList.remove('hidden');
+        arrow?.classList.add('rotate-180');
+    };
+
+    const closeMenu = () => {
+        menu?.classList.add('hidden');
+        arrow?.classList.remove('rotate-180');
+    };
+
+    const toggleMenu = () => {
+        if (menu?.classList.contains('hidden')) {
+            openMenu();
         } else {
-            cachedModels = [];
-            modelFetchError = null;
-            store.getState().setChatSettings({
-                selectedEndpointId: val,
-            });
-            syncSettingsUI();
-            const cs = store.getState().chatSettings;
-            if (cs.baseUrl) {
-                triggerModelFetch();
+            closeMenu();
+        }
+    };
+
+    toggleBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu();
+    });
+
+    // Selecting an endpoint from the combobox menu
+    menu?.querySelectorAll('.combobox-endpoint-item').forEach((item) => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const epId = item.getAttribute('data-endpoint-id');
+            closeMenu();
+            if (epId) {
+                cachedModels = [];
+                modelFetchError = null;
+                store.getState().setChatSettings({
+                    selectedEndpointId: epId,
+                });
+                syncSettingsUI();
+                const cs = store.getState().chatSettings;
+                if (cs.baseUrl) {
+                    triggerModelFetch();
+                }
             }
+        });
+    });
+
+    // "+ Add new endpoint..." in the combobox menu
+    addNewOption?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeMenu();
+        addNewEndpoint();
+    });
+
+    // Close combobox menu when clicking outside
+    const handleOutsideClick = (e: MouseEvent) => {
+        if (wrapper && !wrapper.contains(e.target as Node)) {
+            closeMenu();
+        }
+    };
+    document.addEventListener('click', handleOutsideClick);
+
+    // Live typing in the combobox input renames the active endpoint
+    input?.addEventListener('input', () => {
+        const newName = input.value;
+        const cs = store.getState().chatSettings;
+        const updatedEndpoints = (cs.endpoints || []).map(ep =>
+            ep.id === cs.selectedEndpointId ? { ...ep, name: newName } : ep
+        );
+        store.getState().setChatSettings({ endpoints: updatedEndpoints });
+
+        // Update active item label live in the menu
+        const activeItem = menu?.querySelector(`.combobox-endpoint-item[data-endpoint-id="${cs.selectedEndpointId}"] .endpoint-item-label`);
+        if (activeItem) {
+            activeItem.textContent = newName.trim() || cs.baseUrl || 'Unnamed Endpoint';
         }
     });
 
+    // Top "+ Add Endpoint" button
+    addBtn?.addEventListener('click', () => {
+        closeMenu();
+        addNewEndpoint();
+    });
+
+    // Toggle configuration details button
+    toggleDetailsBtn?.addEventListener('click', () => {
+        isDetailsExpanded = !isDetailsExpanded;
+        const panel = document.getElementById('endpoint-details-panel');
+        const chevronEl = document.getElementById('toggle-details-chevron');
+        const labelEl = document.getElementById('toggle-endpoint-details-label');
+        if (panel) {
+            panel.classList.toggle('hidden', !isDetailsExpanded);
+            panel.classList.toggle('flex', isDetailsExpanded);
+        }
+        if (chevronEl) {
+            chevronEl.classList.toggle('rotate-90', isDetailsExpanded);
+        }
+        if (labelEl) {
+            labelEl.textContent = isDetailsExpanded ? 'Hide URL & API key' : 'Edit URL & API key';
+        }
+    });
+
+    // Delete endpoint button
     deleteBtn?.addEventListener('click', () => {
         const cs = store.getState().chatSettings;
         if (cs.endpoints && cs.endpoints.length > 1) {
@@ -238,6 +399,7 @@ function attachEndpointListeners() {
         }
     });
 
+    // Base URL input listeners
     urlInput?.addEventListener('input', (e) => {
         const newUrl = (e.target as HTMLInputElement).value.trim();
         store.getState().setChatSettings({ baseUrl: newUrl });
@@ -249,19 +411,19 @@ function attachEndpointListeners() {
 }
 
 function renderKeyContainer(chatSettings: { apiKey: string }) {
-    const container = elements.settings.chatKeyContainer;
+    const container = document.getElementById('chat-key-container');
     if (!container) return;
 
     if (chatSettings.apiKey) {
         container.innerHTML = `
-            <div class="flex items-center justify-between px-3 py-1.5 bg-bg-app border border-border-default rounded-md">
-                <div class="flex items-center gap-2">
+            <div class="flex items-center justify-between px-2.5 py-1.5 bg-bg-app border border-border-default rounded-md">
+                <div class="flex items-center gap-2 min-w-0">
                     <span class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
-                    <span class="text-xs font-mono text-fg-primary select-none">${formatMaskedKey(chatSettings.apiKey)}</span>
-                    <span class="text-[10px] text-fg-muted font-sans">(Saved)</span>
+                    <span class="text-xs font-mono text-fg-primary truncate select-none">${formatMaskedKey(chatSettings.apiKey)}</span>
+                    <span class="text-[10px] text-fg-muted font-sans shrink-0">(Saved)</span>
                 </div>
-                <button type="button" id="clear-chat-key" class="text-xs text-red-400 hover:text-red-500 font-medium px-2 py-0.5 rounded 
-                hover:bg-bg-surface transition-colors cursor-pointer" title="Delete API Key">
+                <button type="button" id="clear-chat-key" class="text-[11px] text-red-400 hover:text-red-500 font-medium px-1.5 py-0.5 rounded 
+                hover:bg-bg-surface transition-colors cursor-pointer shrink-0" title="Delete API Key">
                     Delete
                 </button>
             </div>
@@ -288,12 +450,11 @@ function renderKeyContainer(chatSettings: { apiKey: string }) {
                     data-form-type="other"
                     spellcheck="false"
                     style="-webkit-text-security: disc; text-security: disc;"
-                    class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary 
+                    class="w-full px-2.5 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary 
                     placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
-                    placeholder="Paste API key (sk-...) or leave blank for local server"
+                    placeholder="Paste API key (sk-...) or leave blank"
                     value="" />
             </div>
-            <span class="text-[10px] text-fg-muted">For local instances without authentication, you can leave this empty.</span>
         `;
 
         const apiKeyInput = document.getElementById('chat-api-key') as HTMLInputElement | null;
@@ -361,10 +522,13 @@ function getModelSelectorContent(chatSettings: { apiKey: string; model: string; 
 
         return `
             <div class="space-y-1.5">
-                <div class="relative">
+                <div class="relative flex items-center">
+                    <div class="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-fg-muted z-10 flex items-center justify-center">
+                        ${ICONS.CHEVRON_DOWN}
+                    </div>
                     <select id="chat-model-select"
-                        class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary focus:outline-none
-                        focus:border-brand font-mono appearance-none cursor-pointer pr-8">
+                        class="w-full pl-7 pr-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary focus:outline-none
+                        focus:border-brand font-mono appearance-none cursor-pointer">
                         ${cachedModels.map(m => `
                             <option value="${escapeHtml(m)}" ${m === currentModel ? 'selected' : ''}>
                                 ${escapeHtml(m)}
@@ -372,9 +536,6 @@ function getModelSelectorContent(chatSettings: { apiKey: string; model: string; 
                         `).join('')}
                         <option value="__custom__" ${isCustom ? 'selected' : ''}>+ Custom model name...</option>
                     </select>
-                    <div class="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-fg-muted text-[10px]">
-                        ▼
-                    </div>
                 </div>
 
                 <div id="custom-model-wrapper" class="${isCustom ? '' : 'hidden'} pt-1">

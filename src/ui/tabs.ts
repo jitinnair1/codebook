@@ -1,14 +1,15 @@
 export function initTabs(
     tabProblem: HTMLElement | null,
     tabCode: HTMLElement | null,
-    descElMobile: HTMLElement | null,
+    problemPanel: HTMLElement | null,
     editorConsolePanel: HTMLElement | null
 ) {
-    if (!tabProblem || !tabCode || !descElMobile || !editorConsolePanel) return (t: 'problem' | 'code') => { };
+    if (!tabProblem || !tabCode || !problemPanel || !editorConsolePanel) return (t: 'problem' | 'code') => { };
 
     function switchTab(tab: 'problem' | 'code') {
         if (tab === 'problem') {
-            descElMobile!.classList.remove('hidden');
+            problemPanel!.classList.remove('hidden');
+            problemPanel!.classList.add('flex');
             editorConsolePanel!.classList.add('hidden');
             editorConsolePanel!.classList.remove('flex');
 
@@ -17,7 +18,8 @@ export function initTabs(
             tabCode!.classList.add('text-fg-muted', 'border-transparent');
             tabCode!.classList.remove('text-fg-primary', 'border-brand');
         } else {
-            descElMobile!.classList.add('hidden');
+            problemPanel!.classList.add('hidden');
+            problemPanel!.classList.remove('flex');
             editorConsolePanel!.classList.remove('hidden');
             editorConsolePanel!.classList.add('flex');
 

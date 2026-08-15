@@ -1,8 +1,8 @@
 export const elements = {
-    //problem descriptions (mobile and desktop)
+    //problem description
     description: {
         desktop: document.getElementById('ex-desc-desktop') as HTMLElement,
-        mobile: document.getElementById('ex-desc-mobile') as HTMLElement,
+        mobile: document.getElementById('ex-desc-desktop') as HTMLElement,
     },
 
     //sidebar
@@ -12,7 +12,8 @@ export const elements = {
         nav: document.getElementById('sidebar-nav') as HTMLElement,
     },
 
-    //editor and console
+    //problem and editor panels
+    problemAndChatPanel: document.getElementById('problem-and-chat-panel') as HTMLElement,
     editorConsolePanel: document.getElementById('editor-and-console-panel') as HTMLElement,
     console: document.getElementById('console-output') as HTMLElement,
     status: document.getElementById('status') as HTMLElement,
@@ -44,7 +45,6 @@ export const elements = {
         chatToggle: document.getElementById('chat-mode-toggle') as HTMLInputElement,
         chatFields: document.getElementById('chat-settings-fields') as HTMLElement,
         endpointSection: document.getElementById('chat-endpoint-section') as HTMLElement,
-        chatKeyContainer: document.getElementById('chat-key-container') as HTMLElement,
         refreshModelsBtn: document.getElementById('refresh-models-btn') as HTMLButtonElement,
         chatModelContainer: document.getElementById('chat-model-container') as HTMLElement,
     },

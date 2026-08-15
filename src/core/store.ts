@@ -97,12 +97,16 @@ const encryptedStateStorage: StateStorage = {
             if (ep.apiKey) {
               ep.apiKey = await decryptSecret(ep.apiKey);
             }
+            if (!ep.name) {
+              ep.name = ep.baseUrl?.includes('openai.com') ? 'OpenAI API' : (ep.baseUrl ? 'Custom Endpoint' : 'OpenAI API');
+            }
           }
         } else {
           // Initialize endpoints if absent
           cs.endpoints = [
             {
               id: cs.selectedEndpointId || 'default-endpoint',
+              name: cs.baseUrl?.includes('openai.com') ? 'OpenAI API' : (cs.baseUrl ? 'Custom Endpoint' : 'OpenAI API'),
               baseUrl: cs.baseUrl || 'https://api.openai.com/v1',
               apiKey: cs.apiKey || '',
               model: cs.model || '',
@@ -203,6 +207,7 @@ export const store = createStore<AppState>()(
           updated.endpoints = [
             {
               id: updated.selectedEndpointId || 'default-endpoint',
+              name: updated.baseUrl?.includes('openai.com') ? 'OpenAI API' : 'Custom Endpoint',
               baseUrl: updated.baseUrl || 'https://api.openai.com/v1',
               apiKey: updated.apiKey || '',
               model: updated.model || '',

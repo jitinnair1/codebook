@@ -55,7 +55,7 @@
   <div class="flex-1 flex flex-col overflow-hidden relative">
 
     <!-- navigation -->
-    <nav class="flex h-12 border-b border-border-default bg-bg-surface items-center px-8 shrink-0">
+    <nav class="flex h-12 border-b border-border-default bg-bg-surface items-center px-4 sm:px-8 shrink-0">
       <!-- left section -->
       <div class="flex items-center gap-4">
         <button id="sidebar-toggle" class="text-fg-muted hover:text-fg-primary transition-colors cursor-pointer"
@@ -105,7 +105,7 @@
         </button>
 
         <button id="settings-btn"
-          class="hidden md:block p-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-app rounded transition-colors cursor-pointer"
+          class="p-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-app rounded transition-colors cursor-pointer"
           title="Settings">
         </button>
 
@@ -123,13 +123,13 @@
 
 
     <!-- mobile only tab bar -->
-    <div class="flex md:hidden border-b border-border-default bg-bg-surface shrink-0">
+    <div class="flex h-12 md:hidden border-b border-border-default bg-bg-surface shrink-0">
       <button id="tab-problem"
-        class="flex-1 py-2 text-xs font-bold text-fg-primary border-b-2 border-brand transition-colors">
+        class="flex-1 h-full flex items-center justify-center text-xs font-bold text-fg-primary border-b-2 border-brand transition-colors cursor-pointer">
         Problem
       </button>
       <button id="tab-code"
-        class="flex-1 py-2 text-xs font-bold text-fg-muted hover:text-fg-primary transition-colors border-b-2 border-transparent">
+        class="flex-1 h-full flex items-center justify-center text-xs font-bold text-fg-muted hover:text-fg-primary transition-colors border-b-2 border-transparent cursor-pointer">
         Code
       </button>
     </div>
@@ -143,9 +143,7 @@
         <div
           class="h-10 px-4 flex justify-between items-center border-b border-border-default select-none shrink-0 bg-bg-surface order-first md:order-0">
           <span class="text-[10px] font-bold text-fg-muted uppercase tracking-wider">Exercises</span>
-          <button id="reset-progress-btn"
-            class="hover:cursor-pointer"
-            title="Reset Progress">
+          <button id="reset-progress-btn" class="hover:cursor-pointer" title="Reset Progress">
             <!-- trash icon injected via js -->
           </button>
         </div>
@@ -153,34 +151,35 @@
         </div>
       </nav>
 
-      <!-- problem + chat unified column (desktop) -->
+      <!-- problem + chat unified column -->
       <div id="problem-and-chat-panel"
-        class="hidden md:flex flex-col order-1 md:order-0 w-full h-full md:w-1/2 lg:w-5/12 bg-bg-surface border-r border-border-default min-h-0 min-w-0">
+        class="flex flex-col order-1 md:order-0 w-full h-full md:w-1/2 lg:w-5/12 bg-bg-surface border-r border-border-default min-h-0 min-w-0">
 
         <!-- unified scroll container (Problem + Rubber Duck stream) -->
-        <div id="problem-and-chat-scroll"
-          class="flex-1 overflow-y-auto min-h-0 relative p-8 pb-12">
+        <div id="problem-and-chat-scroll" class="flex-1 overflow-y-auto min-h-0 relative p-4 sm:p-8 pb-12">
 
           <!-- problem description -->
           <div id="ex-desc-desktop" class="prose prose-invert prose-sm max-w-none">
           </div>
 
           <!-- Rubber Duck chat section in stream -->
-          <div id="chat-section" class="hidden -mx-8 mt-8">
+          <div id="chat-section" class="hidden -mx-4 sm:-mx-8 mt-8">
             <!-- divider line (same thickness as console) -->
             <div class="h-0.5 bg-border-default select-none"></div>
 
             <!-- header like console -->
-            <div class="h-10 px-4 bg-bg-surface text-[10px] font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between select-none border-b border-border-default">
+            <div
+              class="h-10 px-4 bg-bg-surface text-[10px] font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between select-none border-b border-border-default">
               <span>Rubber Duck</span>
               <button id="clear-chat-btn" class="hover:cursor-pointer" title="Clear Chat History">
               </button>
             </div>
 
             <!-- Chat Messages Stream -->
-            <div id="chat-messages" class="px-8 pt-6 space-y-4 text-xs">
+            <div id="chat-messages" class="px-4 sm:px-8 pt-6 space-y-4 text-xs">
               <div class="text-xs text-fg-muted leading-relaxed space-y-1 select-none">
-                <p class="text-fg-secondary">Ask for hints, error explanations, or architectural guidance without spoiling the solution.</p>
+                <p class="text-fg-secondary">Ask for hints, error explanations, or architectural guidance without
+                  spoiling the solution.</p>
                 <p class="text-[11px] text-fg-muted">Click a suggestion below or type a question to get started.</p>
               </div>
             </div>
@@ -210,11 +209,6 @@
       <!-- horizontal resize handle -->
       <div id="drag-h-desktop"
         class="hidden md:block w-0.5 bg-border-default hover:bg-brand cursor-col-resize z-10 transition-colors select-none shrink-0">
-      </div>
-
-      <!-- problem description (mobile) -->
-      <div id="ex-desc-mobile"
-        class="md:hidden order-1 w-full h-full bg-bg-surface p-8 overflow-y-auto prose prose-invert prose-sm max-w-none">
       </div>
 
       <!-- editor + console panel -->
@@ -315,7 +309,7 @@
     <div id="settings-modal"
       class="hidden fixed inset-0 z-100 items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div
-        class="bg-bg-surface border border-border-default rounded-xl shadow-2xl p-6 w-full max-w-md relative flex flex-col gap-4">
+        class="bg-bg-surface border border-border-default rounded-xl shadow-2xl p-6 w-full max-w-md relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-bold text-fg-primary">Settings</h2>
           <button id="close-settings-btn"
@@ -325,7 +319,7 @@
         </div>
         <div id="settings-content" class="flex flex-col space-y-4">
           <!-- Vim Mode -->
-          <div class="flex items-center justify-between py-3 border-b border-border-default">
+          <div class="hidden md:flex items-center justify-between py-3 border-b border-border-default">
             <div class="flex flex-col pr-4">
               <span class="text-sm text-fg-primary font-medium">Enable Vim Mode</span>
               <span class="text-xs text-fg-muted">Use Vim keybindings in the code editor</span>
@@ -355,7 +349,7 @@
             </div>
 
             <!-- Collapsible Chat Settings -->
-            <div id="chat-settings-fields" class="space-y-3.5 pt-2 pb-1 hidden">
+            <div id="chat-settings-fields" class="space-y-2.5 pt-2 pb-1 hidden">
               <!-- Security Notice -->
               <div
                 class="p-2.5 rounded-lg bg-bg-app border border-border-default text-[11px] text-fg-muted leading-relaxed">
@@ -364,27 +358,13 @@
                 endpoint.
               </div>
 
-              <!-- Endpoint Selector & Base URL Container -->
-              <div id="chat-endpoint-section" class="flex flex-col space-y-2">
+              <!-- Endpoint Selector & Configuration Container -->
+              <div id="chat-endpoint-section" class="flex flex-col space-y-1.5">
                 <!-- dynamically rendered in settings.ts -->
               </div>
 
-              <!-- API Key -->
-              <div class="flex flex-col space-y-1">
-                <div class="flex items-center justify-between">
-                  <label class="text-xs font-semibold text-fg-primary">
-                    API Key
-                  </label>
-                  <span class="text-[10px] text-fg-muted font-normal">Optional for local servers (Ollama, LM
-                    Studio)</span>
-                </div>
-                <div id="chat-key-container">
-                  <!-- dynamically rendered -->
-                </div>
-              </div>
-
               <!-- Model Selection / Dropdown -->
-              <div class="flex flex-col space-y-1.5 pt-1">
+              <div class="flex flex-col space-y-1.5">
                 <div class="flex items-center justify-between">
                   <label class="text-xs font-semibold text-fg-primary">
                     Model Selection

@@ -47,6 +47,13 @@ export const elements = {
         endpointSection: document.getElementById('chat-endpoint-section') as HTMLElement,
         refreshModelsBtn: document.getElementById('refresh-models-btn') as HTMLButtonElement,
         chatModelContainer: document.getElementById('chat-model-container') as HTMLElement,
+        exportBackupBtn: document.getElementById('export-backup-btn') as HTMLButtonElement,
+        exportBackupIcon: document.getElementById('export-backup-icon') as HTMLElement,
+        importBackupBtn: document.getElementById('import-backup-btn') as HTMLButtonElement,
+        importBackupIcon: document.getElementById('import-backup-icon') as HTMLElement,
+        importBackupInput: document.getElementById('import-backup-input') as HTMLInputElement,
+        includeKeysCheckbox: document.getElementById('backup-include-keys') as HTMLInputElement,
+        backupStatusMsg: document.getElementById('backup-status-msg') as HTMLElement,
     },
 
     //reset progress modal

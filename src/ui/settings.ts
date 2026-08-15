@@ -3,6 +3,7 @@ import { elements } from '../core/elements';
 import { store, ChatSettings, ChatEndpoint } from '../core/store';
 import { updateEditorVimMode } from '../core/editor';
 import { ICONS } from './icons';
+import siteConfig from '../../site.toml';
 
 let cachedModels: string[] = [];
 let isFetchingModels = false;
@@ -15,6 +16,12 @@ export function initSettings() {
     }
     if (elements.settings.closeBtn) {
         elements.settings.closeBtn.innerHTML = ICONS.CLOSE;
+    }
+    if (elements.settings.exportBackupIcon) {
+        elements.settings.exportBackupIcon.innerHTML = ICONS.DOWNLOAD;
+    }
+    if (elements.settings.importBackupIcon) {
+        elements.settings.importBackupIcon.innerHTML = ICONS.UPLOAD;
     }
 
     // Bind static event listeners once
@@ -85,6 +92,20 @@ function bindStaticListeners() {
     // Refresh Models button
     elements.settings.refreshModelsBtn?.addEventListener('click', () => {
         triggerModelFetch();
+    });
+
+    // Export Backup button
+    elements.settings.exportBackupBtn?.addEventListener('click', () => {
+        handleExportBackup();
+    });
+
+    // Import Backup button & file input
+    elements.settings.importBackupBtn?.addEventListener('click', () => {
+        elements.settings.importBackupInput?.click();
+    });
+
+    elements.settings.importBackupInput?.addEventListener('change', (e) => {
+        handleImportBackup(e);
     });
 }
 
@@ -737,6 +758,152 @@ function escapeHtml(str: string): string {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
+function showBackupStatus(message: string, isError: boolean = false) {
+    const el = elements.settings.backupStatusMsg;
+    if (!el) return;
+    el.textContent = message;
+    el.className = `text-xs rounded-md p-2 transition-all ${isError
+            ? 'bg-red-500/10 border border-red-500/20 text-red-400 block'
+            : 'bg-green-500/10 border border-green-500/20 text-green-400 block'
+        }`;
+    setTimeout(() => {
+        if (el.textContent === message) {
+            el.className = 'hidden text-xs rounded-md p-2';
+            el.textContent = '';
+        }
+    }, 5000);
+}
+
+function handleExportBackup() {
+    try {
+        const state = store.getState();
+        const includeKeys = !!elements.settings.includeKeysCheckbox?.checked;
+
+        // Copy and sanitize chat settings based on checkbox
+        let exportChatSettings: ChatSettings = {
+            ...state.chatSettings,
+            endpoints: (state.chatSettings.endpoints || []).map(ep => ({ ...ep })),
+        };
+
+        if (!includeKeys) {
+            exportChatSettings.apiKey = '';
+            exportChatSettings.endpoints = exportChatSettings.endpoints.map(ep => ({
+                ...ep,
+                apiKey: '',
+            }));
+        }
+
+        const siteTitle = siteConfig.title || 'codebook';
+        const siteSlug = siteTitle.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'codebook';
+
+        const backupPayload = {
+            version: 1,
+            siteTitle,
+            exportedAt: new Date().toISOString(),
+            data: {
+                currentExerciseId: state.currentExerciseId,
+                currentLanguageId: state.currentLanguageId,
+                completedIds: state.completedIds,
+                userCode: state.userCode,
+                vimMode: state.vimMode,
+                chatSettings: exportChatSettings,
+                chatHistory: state.chatHistory,
+            },
+        };
+
+        const dataStr = JSON.stringify(backupPayload, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+
+        a.href = url;
+        a.download = `${siteSlug}-backup-${timestamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showBackupStatus('Backup exported successfully.');
+    } catch (err: any) {
+        showBackupStatus(`Export failed: ${err?.message || 'Unknown error'}`, true);
+    }
+}
+
+async function handleImportBackup(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+        let parsed: any;
+        try {
+            parsed = JSON.parse(text);
+        } catch {
+            showBackupStatus('Import failed: The selected file is not valid JSON.', true);
+            input.value = '';
+            return;
+        }
+
+        const currentSiteTitle = siteConfig.title || 'codebook';
+
+        // Check if file has metadata wrapper or raw state dump
+        let backupData: any = null;
+        let fileSiteTitle: string | null = null;
+
+        if (parsed && typeof parsed === 'object') {
+            if (parsed.data && typeof parsed.data === 'object') {
+                backupData = parsed.data;
+                fileSiteTitle = parsed.siteTitle || null;
+            } else if (parsed.state && typeof parsed.state === 'object') {
+                backupData = parsed.state;
+                fileSiteTitle = parsed.siteTitle || null;
+            } else {
+                backupData = parsed;
+                fileSiteTitle = parsed.siteTitle || null;
+            }
+        }
+
+        if (!backupData || typeof backupData !== 'object') {
+            showBackupStatus('Import failed: Backup file does not contain valid application state.', true);
+            input.value = '';
+            return;
+        }
+
+        // Strict siteTitle validation
+        if (fileSiteTitle && fileSiteTitle !== currentSiteTitle) {
+            showBackupStatus(
+                `Import rejected: Backup is for "${fileSiteTitle}", but current site is "${currentSiteTitle}".`,
+                true
+            );
+            input.value = '';
+            return;
+        }
+
+        // Apply backup to store
+        store.getState().restoreBackup(backupData);
+
+        // Sync editor vim mode and UI
+        if (typeof backupData.vimMode === 'boolean') {
+            updateEditorVimMode(backupData.vimMode);
+        }
+        cachedModels = [];
+        modelFetchError = null;
+        syncSettingsUI();
+
+        showBackupStatus('Backup restored successfully.');
+    } catch (err: any) {
+        showBackupStatus(`Import failed: ${err?.message || 'Unknown error'}`, true);
+    } finally {
+        input.value = '';
+    }
+}
+
 
 
 

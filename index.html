@@ -394,6 +394,38 @@
               </div>
             </div>
           </div>
+
+          <!-- Backup & Restore Section -->
+          <div class="flex flex-col pt-3 border-t border-border-default space-y-2.5">
+            <div class="flex flex-col">
+              <span class="text-sm text-fg-primary font-medium">Backup &amp; Restore</span>
+              <span class="text-xs text-fg-muted">Export or restore your progress, saved code, chat history, and settings.</span>
+            </div>
+
+            <!-- Include API keys toggle -->
+            <label class="flex items-center gap-2 text-xs text-fg-secondary cursor-pointer select-none">
+              <input type="checkbox" id="backup-include-keys" class="rounded border-border-default text-brand focus:ring-0 focus:outline-none cursor-pointer">
+              <span>Include API keys in export <span class="text-[10px] text-fg-muted">(disabled by default for safety)</span></span>
+            </label>
+
+            <!-- Export / Import Action Buttons -->
+            <div class="flex items-center gap-2 pt-0.5">
+              <button type="button" id="export-backup-btn"
+                class="px-3 py-1.5 text-xs font-medium text-fg-primary bg-bg-app hover:bg-border-default border border-border-default rounded-md transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs">
+                <span id="export-backup-icon" class="flex items-center justify-center"></span>
+                <span>Export Backup</span>
+              </button>
+              <button type="button" id="import-backup-btn"
+                class="px-3 py-1.5 text-xs font-medium text-fg-primary bg-bg-app hover:bg-border-default border border-border-default rounded-md transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs">
+                <span id="import-backup-icon" class="flex items-center justify-center"></span>
+                <span>Import Backup</span>
+              </button>
+              <input type="file" id="import-backup-input" accept=".json,application/json" class="hidden" />
+            </div>
+
+            <!-- Feedback / Status Message Container -->
+            <div id="backup-status-msg" class="hidden text-xs rounded-md p-2"></div>
+          </div>
         </div>
       </div>
     </div>

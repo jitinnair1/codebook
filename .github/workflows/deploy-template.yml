@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   publish-template:
     runs-on: ubuntu-latest
@@ -33,4 +37,4 @@ jobs:
           if ! git diff-index --quiet HEAD --; then
             git commit -m "chore: update template branch from main [skip ci]"
           fi
-          git push origin template --force
+          git push origin template --force-with-lease

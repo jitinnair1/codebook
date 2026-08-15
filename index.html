@@ -366,9 +366,10 @@
               <!-- Security Notice -->
               <div
                 class="p-2.5 rounded-lg bg-bg-app border border-border-default text-[11px] text-fg-muted leading-relaxed">
-                <span class="font-semibold text-fg-primary">🔒 Encrypted Storage:</span>
-                Credentials are encrypted with Web Crypto (AES-GCM 256-bit) and sent directly to your configured
-                endpoint.
+                <ul class="list-none text-[10px] text-fg-muted pl-0">
+                  <li>Use API keys with low billing and usage limits only</li>
+                  <li>For using local models, serve them over HTTPS</li>
+                </ul>
               </div>
 
               <!-- Endpoint Selector & Configuration Container -->
@@ -399,13 +400,16 @@
           <div class="flex flex-col pt-3 border-t border-border-default space-y-2.5">
             <div class="flex flex-col">
               <span class="text-sm text-fg-primary font-medium">Backup &amp; Restore</span>
-              <span class="text-xs text-fg-muted">Export or restore your progress, saved code, chat history, and settings.</span>
+              <span class="text-xs text-fg-muted">Export or restore your progress, saved code, chat history, and
+                settings.</span>
             </div>
 
             <!-- Include API keys toggle -->
             <label class="flex items-center gap-2 text-xs text-fg-secondary cursor-pointer select-none">
-              <input type="checkbox" id="backup-include-keys" class="rounded border-border-default text-brand focus:ring-0 focus:outline-none cursor-pointer">
-              <span>Include API keys in export <span class="text-[10px] text-fg-muted">(disabled by default for safety)</span></span>
+              <input type="checkbox" id="backup-include-keys"
+                class="rounded border-border-default text-brand focus:ring-0 focus:outline-none cursor-pointer">
+              <span>Include API keys in export <span class="text-[10px] text-fg-muted">(disabled by default for
+                  safety)</span></span>
             </label>
 
             <!-- Export / Import Action Buttons -->

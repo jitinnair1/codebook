@@ -3,7 +3,7 @@
 
 # Site Title & Subtitle
 title = "codebook"
-subtitle = "by wrongfirst.dev"
+subtitle = "by wrongfirst"
 
 # Language Configuration
 # `languages`: Array of globally enabled language IDs (matching folders under src/languages/<lang_id>)

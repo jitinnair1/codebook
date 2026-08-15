@@ -436,37 +436,73 @@
         <!-- Controls and Filters -->
         <div
           class="px-6 py-3 bg-bg-app border-b border-border-default flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-fg-muted uppercase tracking-wider">Language:</span>
-            <div id="speedrun-lang-filters" class="flex items-center gap-1.5 flex-wrap">
-              <!-- Filter buttons dynamically rendered -->
-            </div>
+          <div class="flex items-center gap-2.5">
+            <span class="text-xs font-semibold text-fg-muted uppercase tracking-wider">Target:</span>
+            <select id="speedrun-lang-select"
+              class="bg-bg-surface text-xs font-medium text-fg-primary border border-border-default rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand cursor-pointer shadow-xs">
+              <option value="all">All Languages</option>
+            </select>
           </div>
 
           <div class="flex items-center gap-2">
+            <button id="speedrun-export-btn"
+              class="hidden px-3 py-1.5 text-xs font-medium text-fg-secondary hover:text-fg-primary bg-bg-surface hover:bg-bg-app border border-border-default rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Export results as JSON">
+              <span id="speedrun-export-icon" class="flex items-center justify-center"></span>
+              <span id="speedrun-export-text">Export (JSON)</span>
+            </button>
             <button id="speedrun-start-btn"
-              class="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:opacity-90 rounded-md transition-all cursor-pointer flex items-center gap-1.5 shadow-sm">
-              <span>Start Speedrun</span>
+              class="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:opacity-90 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-sm">
+              <span id="speedrun-start-btn-text">Start Speedrun</span>
             </button>
           </div>
         </div>
 
         <!-- Progress Section -->
         <div id="speedrun-progress-container"
-          class="hidden px-6 py-3 bg-bg-surface/50 border-b border-border-default shrink-0">
-          <div class="flex items-center justify-between text-xs text-fg-secondary mb-1.5 font-medium">
+          class="hidden px-6 py-3 bg-bg-surface/50 border-b border-border-default shrink-0 space-y-2.5">
+          <div class="flex items-center justify-between text-xs text-fg-secondary font-medium">
             <span id="speedrun-progress-status">Ready</span>
-            <span id="speedrun-progress-counter">0 / 0</span>
+            <span id="speedrun-progress-counter" class="font-mono text-[11px]">0 / 0</span>
           </div>
-          <div class="w-full bg-border-default rounded-full h-2 overflow-hidden">
+          <div class="w-full bg-border-default rounded-full h-1.5 overflow-hidden">
             <div id="speedrun-progress-bar" class="bg-brand h-full w-0 transition-all duration-150"></div>
           </div>
-          <div id="speedrun-stats" class="flex items-center gap-4 mt-2 text-xs">
-            <span class="text-green-500 font-medium" id="stat-passed">Passed: 0</span>
-            <span class="text-yellow-500 font-medium" id="stat-failed">Failed: 0</span>
-            <span class="text-red-500 font-medium" id="stat-errors">Errors: 0</span>
-            <span class="text-fg-muted font-medium" id="stat-missing">Missing: 0</span>
-            <span class="text-fg-muted ml-auto font-mono text-[11px]" id="stat-time">0.00s</span>
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-xs">
+            <!-- Clickable Filter Badges -->
+            <div id="speedrun-status-filters" class="flex items-center gap-1.5 flex-wrap">
+              <button data-filter="all" id="filter-all"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-brand text-white shadow-xs transition-all cursor-pointer">
+                All: <span id="stat-all" class="font-bold ml-0.5">0</span>
+              </button>
+              <button data-filter="passed" id="filter-passed"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-bg-surface text-green-500 hover:bg-green-500/10 hover:border-green-500/30 transition-all cursor-pointer">
+                Passed: <span id="stat-passed" class="font-bold ml-0.5">0</span>
+              </button>
+              <button data-filter="failed" id="filter-failed"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-bg-surface text-yellow-500 hover:bg-yellow-500/10 hover:border-yellow-500/30 transition-all cursor-pointer">
+                Failed: <span id="stat-failed" class="font-bold ml-0.5">0</span>
+              </button>
+              <button data-filter="error" id="filter-errors"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-bg-surface text-red-500 hover:bg-red-500/10 hover:border-red-500/30 transition-all cursor-pointer">
+                Errors: <span id="stat-errors" class="font-bold ml-0.5">0</span>
+              </button>
+              <button data-filter="missing_solution" id="filter-missing"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-bg-surface text-fg-muted hover:bg-zinc-500/10 hover:border-zinc-500/30 transition-all cursor-pointer">
+                Missing: <span id="stat-missing" class="font-bold ml-0.5">0</span>
+              </button>
+            </div>
+
+            <!-- Sort and Total Time -->
+            <div class="flex items-center gap-3 ml-auto">
+              <button id="speedrun-sort-btn"
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border border-border-default bg-bg-surface text-fg-muted hover:text-fg-primary hover:bg-bg-app transition-colors cursor-pointer"
+                title="Sort tests by execution duration">
+                <span id="speedrun-sort-icon" class="flex items-center justify-center"></span>
+                <span id="speedrun-sort-label">Sort: Default</span>
+              </button>
+              <span class="text-fg-muted font-mono text-[11px]" id="stat-time">0.00s</span>
+            </div>
           </div>
         </div>
 

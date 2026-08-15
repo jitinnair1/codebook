@@ -109,11 +109,6 @@
           title="Settings">
         </button>
 
-        <button id="chat-btn"
-          class="hidden p-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-app rounded transition-colors cursor-pointer"
-          title="Rubber Duck">
-        </button>
-
         <button id="run-btn"
           class="bg-brand hover:opacity-90 text-white pl-3 pr-4 py-1.5 rounded text-sm font-semibold transition-opacity flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           disabled>
@@ -158,14 +153,63 @@
         </div>
       </nav>
 
-      <!-- problem description (desktop) -->
-      <div id="ex-desc-desktop" class="hidden md:block order-1 md:order-0 w-full h-full md:w-1/2 lg:w-5/12 bg-bg-surface border-r
-                 border-border-default overflow-y-auto relative p-8 pb-32 prose prose-invert prose-sm max-w-none">
+      <!-- problem + chat unified column (desktop) -->
+      <div id="problem-and-chat-panel"
+        class="hidden md:flex flex-col order-1 md:order-0 w-full h-full md:w-1/2 lg:w-5/12 bg-bg-surface border-r border-border-default min-h-0 min-w-0">
+
+        <!-- unified scroll container (Problem + Rubber Duck stream) -->
+        <div id="problem-and-chat-scroll"
+          class="flex-1 overflow-y-auto min-h-0 relative p-8 pb-12">
+
+          <!-- problem description -->
+          <div id="ex-desc-desktop" class="prose prose-invert prose-sm max-w-none">
+          </div>
+
+          <!-- Rubber Duck chat section in stream -->
+          <div id="chat-section" class="hidden -mx-8 mt-8 flex flex-col">
+            <!-- divider line (same thickness as console) -->
+            <div class="h-0.5 bg-border-default select-none"></div>
+
+            <!-- header like console -->
+            <div class="h-10 px-8 bg-bg-surface text-[10px] font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between select-none border-b border-border-default">
+              <span>Rubber Duck</span>
+              <button id="clear-chat-btn" class="hover:cursor-pointer p-1 text-fg-muted hover:text-red-400 transition-colors" title="Clear Chat History">
+              </button>
+            </div>
+
+            <!-- Chat Messages Stream -->
+            <div id="chat-messages" class="px-8 pt-6 space-y-4 text-xs">
+              <div class="text-xs text-fg-muted leading-relaxed space-y-1 select-none">
+                <p class="text-fg-secondary">Ask for hints, error explanations, or architectural guidance without spoiling the solution.</p>
+                <p class="text-[11px] text-fg-muted">Click a suggestion below or type a question to get started.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pinned bottom input container (shown when Rubber Duck enabled) -->
+        <div id="chat-input-container" class="hidden flex-col shrink-0 bg-bg-surface">
+          <!-- Quick Start -->
+          <div id="chat-quick-chips"
+            class="px-3 py-1 border-t border-border-default/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 bg-bg-surface">
+            <!-- suggestion injected via js -->
+          </div>
+
+          <!-- Chat Input Area (Flush & Unboxed) -->
+          <div class="border-t border-border-default bg-bg-app px-3 py-1.5 flex items-end gap-2 shrink-0">
+            <textarea id="chat-input" rows="1" placeholder="Ask Rubber Duck... (Enter to send)"
+              class="flex-1 bg-transparent text-xs text-fg-primary placeholder:text-fg-muted outline-none resize-none max-h-24 min-h-5 py-0.5 leading-normal font-sans"></textarea>
+            <button id="chat-send-btn"
+              class="p-1 rounded bg-brand text-white hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
+              title="Send Message" disabled>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- horizontal resize handle -->
       <div id="drag-h-desktop"
-        class="hidden md:block w-0.5 bg-border-default hover:bg-brand cursor-col-resize z-10 transition-colors select-none">
+        class="hidden md:block w-0.5 bg-border-default hover:bg-brand cursor-col-resize z-10 transition-colors select-none shrink-0">
       </div>
 
       <!-- problem description (mobile) -->
@@ -213,59 +257,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Chat Sidebar -->
-      <aside id="chat-sidebar"
-        class="hidden md:w-80 lg:w-96 border-l border-border-default bg-bg-surface flex-col h-full shrink-0">
-
-        <!-- Header -->
-        <div
-          class="h-10 px-4 flex items-center justify-between border-b border-border-default select-none shrink-0 bg-bg-surface">
-          <div class="flex items-center gap-2 min-w-0">
-            <span id="chat-sidebar-icon" class="text-brand flex items-center"></span>
-            <span class="text-xs font-bold text-fg-primary truncate">Rubber Duck</span>
-            <span id="chat-model-badge"
-              class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand/10 text-brand border border-brand/20 truncate max-w-27.5"></span>
-          </div>
-          <div class="flex items-center gap-1 shrink-0">
-            <button id="chat-clear-btn"
-              class="p-1 text-fg-muted hover:text-red-400 rounded hover:bg-bg-app transition-colors cursor-pointer"
-              title="Clear Chat History">
-            </button>
-            <button id="chat-close-btn"
-              class="p-1 text-fg-muted hover:text-fg-primary rounded hover:bg-bg-app transition-colors cursor-pointer"
-              title="Close Sidebar">
-            </button>
-          </div>
-        </div>
-
-        <!-- Chat Messages Stream -->
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 text-xs">
-          <!-- dynamic messages -->
-        </div>
-
-        <!-- Quick Start -->
-        <div id="chat-quick-chips"
-          class="px-3 py-2 border-t border-border-default/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 bg-bg-surface/50">
-          <!-- suggestion injected via js -->
-        </div>
-
-        <!-- Chat Input Area -->
-        <div class="p-3 border-t border-border-default bg-bg-surface shrink-0">
-          <div
-            class="relative flex items-end gap-2 bg-bg-app border border-border-default rounded-lg p-2 focus-within:border-brand transition-colors">
-            <textarea id="chat-input" rows="1" placeholder="Ask a question..."
-              class="flex-1 bg-transparent text-xs text-fg-primary placeholder:text-fg-muted outline-none resize-none max-h-32 min-h-5 leading-relaxed font-sans"></textarea>
-            <button id="chat-send-btn"
-              class="p-1.5 rounded-md bg-brand text-white hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
-              title="Send Message" disabled>
-            </button>
-          </div>
-          <div class="flex items-center justify-between mt-1 px-1">
-            <span class="text-[10px] text-fg-muted">Enter to send, Shift+Enter for newline</span>
-          </div>
-        </div>
-      </aside>
     </div>
 
     <!-- footer -->

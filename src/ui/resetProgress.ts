@@ -1,6 +1,7 @@
 import { elements } from '../core/elements';
 import { ICONS } from './icons';
 import { store } from '../core/store';
+import { abortAllStreams } from './chatPanel';
 
 export function initResetProgress() {
     if (elements.resetProgressBtn) {
@@ -15,6 +16,7 @@ export function initResetProgress() {
     elements.resetProgress.cancelBtn?.addEventListener('click', closeModal);
 
     elements.resetProgress.confirmBtn?.addEventListener('click', () => {
+        abortAllStreams();
         store.getState().resetProgress();
         window.location.reload();
     });

@@ -90,7 +90,7 @@ export const elements = {
 
     //resize handles and panes
     resize: {
-        paneProblem: document.getElementById('ex-desc-desktop') as HTMLElement,
+        paneProblem: document.getElementById('problem-and-chat-panel') as HTMLElement,
         paneConsole: document.getElementById('pane-console') as HTMLElement,
         dragHDesktop: document.getElementById('drag-h-desktop') as HTMLElement,
         dragVConsole: document.getElementById('drag-v-console') as HTMLElement,
@@ -107,14 +107,12 @@ export const elements = {
         subtitle: document.getElementById('header-subtitle') as HTMLElement,
     },
 
-    //chat sidebar (Rubber Duck)
+    //Rubber Duck Chat (Unified Flow)
     chat: {
-        btn: document.getElementById('chat-btn') as HTMLButtonElement,
-        sidebar: document.getElementById('chat-sidebar') as HTMLElement,
-        icon: document.getElementById('chat-sidebar-icon') as HTMLElement,
-        modelBadge: document.getElementById('chat-model-badge') as HTMLElement,
-        clearBtn: document.getElementById('chat-clear-btn') as HTMLButtonElement,
-        closeBtn: document.getElementById('chat-close-btn') as HTMLButtonElement,
+        scrollContainer: document.getElementById('problem-and-chat-scroll') as HTMLElement,
+        section: document.getElementById('chat-section') as HTMLElement,
+        inputContainer: document.getElementById('chat-input-container') as HTMLElement,
+        clearBtn: document.getElementById('clear-chat-btn') as HTMLButtonElement,
         messages: document.getElementById('chat-messages') as HTMLElement,
         quickChips: document.getElementById('chat-quick-chips') as HTMLElement,
         input: document.getElementById('chat-input') as HTMLTextAreaElement,

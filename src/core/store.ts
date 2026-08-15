@@ -66,10 +66,18 @@ const defaultChatSettings: ChatSettings = {
   ],
 };
 
+let isHydrating = true;
+let hasHydrated = false;
+
 const encryptedStateStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
+    isHydrating = true;
     const raw = localStorage.getItem(name);
-    if (!raw) return null;
+    if (!raw) {
+      isHydrating = false;
+      hasHydrated = true;
+      return null;
+    }
     try {
       const parsed = JSON.parse(raw);
 
@@ -102,14 +110,21 @@ const encryptedStateStorage: StateStorage = {
           ];
           cs.selectedEndpointId = cs.endpoints[0].id;
         }
-        return JSON.stringify(parsed);
       }
-      return raw;
+      isHydrating = false;
+      hasHydrated = true;
+      return JSON.stringify(parsed);
     } catch {
+      isHydrating = false;
+      hasHydrated = true;
       return raw;
     }
   },
   setItem: async (name: string, value: string): Promise<void> => {
+    if (isHydrating || !hasHydrated) {
+      // Guard against race conditions wiping local storage before initial hydration completes
+      return;
+    }
     try {
       const parsed = JSON.parse(value);
       if (parsed?.state?.chatSettings) {

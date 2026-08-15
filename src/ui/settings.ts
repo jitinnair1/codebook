@@ -21,6 +21,14 @@ export function initSettings() {
     // Initial sync of settings UI
     syncSettingsUI();
 
+    // Re-sync whenever store hydrates or updates in background
+    store.subscribe(() => {
+        const modal = elements.settings.modal;
+        if (modal && !modal.classList.contains('hidden')) {
+            syncSettingsUI();
+        }
+    });
+
     elements.settingsBtn?.addEventListener('click', openModal);
     elements.settings.closeBtn?.addEventListener('click', closeModal);
 
@@ -269,11 +277,17 @@ function renderKeyContainer(chatSettings: { apiKey: string }) {
     } else {
         container.innerHTML = `
             <div class="relative flex items-center">
-                <input type="password" id="chat-api-key"
-                    autocomplete="off"
+                <input type="text" id="chat-api-key"
+                    name="api-key"
+                    autocomplete="one-time-code"
+                    autocapitalize="off"
+                    autocorrect="off"
                     data-1p-ignore="true"
                     data-lpignore="true"
+                    data-bwignore="true"
+                    data-form-type="other"
                     spellcheck="false"
+                    style="-webkit-text-security: disc; text-security: disc;"
                     class="w-full px-3 py-1.5 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary 
                     placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
                     placeholder="Paste API key (sk-...) or leave blank for local server"
@@ -479,10 +493,15 @@ async function fetchAvailableModels(baseUrl: string, apiKey: string): Promise<{ 
             headers['anthropic-dangerous-direct-browser-access'] = 'true';
         }
 
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), 15000);
+
         const res = await fetch(endpoint, {
             method: 'GET',
             headers,
+            signal: abortController.signal,
         });
+        clearTimeout(timeoutId);
 
         if (!res.ok) {
             const errText = await res.text().catch(() => '');
@@ -557,5 +576,8 @@ function escapeHtml(str: string): string {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
+
+
 
 

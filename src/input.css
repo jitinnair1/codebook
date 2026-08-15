@@ -152,3 +152,12 @@ body.resizing * {
 body.resizing *::-webkit-scrollbar {
   display: none !important;
 }
+
+/* hide scrollbar utility */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

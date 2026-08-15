@@ -1,8 +1,8 @@
 export const elements = {
-    //problem descriptions (mobile and desktop)
+    //problem description
     description: {
         desktop: document.getElementById('ex-desc-desktop') as HTMLElement,
-        mobile: document.getElementById('ex-desc-mobile') as HTMLElement,
+        mobile: document.getElementById('ex-desc-desktop') as HTMLElement,
     },
 
     //sidebar
@@ -12,7 +12,8 @@ export const elements = {
         nav: document.getElementById('sidebar-nav') as HTMLElement,
     },
 
-    //editor and console
+    //problem and editor panels
+    problemAndChatPanel: document.getElementById('problem-and-chat-panel') as HTMLElement,
     editorConsolePanel: document.getElementById('editor-and-console-panel') as HTMLElement,
     console: document.getElementById('console-output') as HTMLElement,
     status: document.getElementById('status') as HTMLElement,
@@ -40,6 +41,19 @@ export const elements = {
         modal: document.getElementById('settings-modal') as HTMLElement,
         closeBtn: document.getElementById('close-settings-btn') as HTMLButtonElement,
         content: document.getElementById('settings-content') as HTMLElement,
+        vimToggle: document.getElementById('vim-mode-toggle') as HTMLInputElement,
+        chatToggle: document.getElementById('chat-mode-toggle') as HTMLInputElement,
+        chatFields: document.getElementById('chat-settings-fields') as HTMLElement,
+        endpointSection: document.getElementById('chat-endpoint-section') as HTMLElement,
+        refreshModelsBtn: document.getElementById('refresh-models-btn') as HTMLButtonElement,
+        chatModelContainer: document.getElementById('chat-model-container') as HTMLElement,
+        exportBackupBtn: document.getElementById('export-backup-btn') as HTMLButtonElement,
+        exportBackupIcon: document.getElementById('export-backup-icon') as HTMLElement,
+        importBackupBtn: document.getElementById('import-backup-btn') as HTMLButtonElement,
+        importBackupIcon: document.getElementById('import-backup-icon') as HTMLElement,
+        importBackupInput: document.getElementById('import-backup-input') as HTMLInputElement,
+        includeKeysCheckbox: document.getElementById('backup-include-keys') as HTMLInputElement,
+        backupStatusMsg: document.getElementById('backup-status-msg') as HTMLElement,
     },
 
     //reset progress modal
@@ -55,19 +69,28 @@ export const elements = {
         modal: document.getElementById('speedrun-modal') as HTMLElement,
         closeBtn: document.getElementById('close-speedrun-btn') as HTMLButtonElement,
         headerIcon: document.getElementById('speedrun-header-icon') as HTMLElement,
-        langFilters: document.getElementById('speedrun-lang-filters') as HTMLElement,
+        langSelect: document.getElementById('speedrun-lang-select') as HTMLSelectElement,
         startBtn: document.getElementById('speedrun-start-btn') as HTMLButtonElement,
+        startBtnText: document.getElementById('speedrun-start-btn-text') as HTMLElement,
+        exportBtn: document.getElementById('speedrun-export-btn') as HTMLButtonElement,
+        exportIcon: document.getElementById('speedrun-export-icon') as HTMLElement,
+        exportText: document.getElementById('speedrun-export-text') as HTMLElement,
         progressContainer: document.getElementById('speedrun-progress-container') as HTMLElement,
         progressBar: document.getElementById('speedrun-progress-bar') as HTMLElement,
         progressStatus: document.getElementById('speedrun-progress-status') as HTMLElement,
         progressCounter: document.getElementById('speedrun-progress-counter') as HTMLElement,
+        statusFilters: document.getElementById('speedrun-status-filters') as HTMLElement,
         stats: {
+            all: document.getElementById('stat-all') as HTMLElement,
             passed: document.getElementById('stat-passed') as HTMLElement,
             failed: document.getElementById('stat-failed') as HTMLElement,
             errors: document.getElementById('stat-errors') as HTMLElement,
             missing: document.getElementById('stat-missing') as HTMLElement,
             time: document.getElementById('stat-time') as HTMLElement,
         },
+        sortBtn: document.getElementById('speedrun-sort-btn') as HTMLButtonElement,
+        sortIcon: document.getElementById('speedrun-sort-icon') as HTMLElement,
+        sortLabel: document.getElementById('speedrun-sort-label') as HTMLElement,
         resultsList: document.getElementById('speedrun-results-list') as HTMLElement,
     },
 
@@ -83,7 +106,7 @@ export const elements = {
 
     //resize handles and panes
     resize: {
-        paneProblem: document.getElementById('ex-desc-desktop') as HTMLElement,
+        paneProblem: document.getElementById('problem-and-chat-panel') as HTMLElement,
         paneConsole: document.getElementById('pane-console') as HTMLElement,
         dragHDesktop: document.getElementById('drag-h-desktop') as HTMLElement,
         dragVConsole: document.getElementById('drag-v-console') as HTMLElement,
@@ -98,5 +121,17 @@ export const elements = {
         logo: document.getElementById('header-logo') as HTMLElement,
         title: document.getElementById('header-title') as HTMLElement,
         subtitle: document.getElementById('header-subtitle') as HTMLElement,
-    }
+    },
+
+    //Rubber Duck Chat (Unified Flow)
+    chat: {
+        scrollContainer: document.getElementById('problem-and-chat-scroll') as HTMLElement,
+        section: document.getElementById('chat-section') as HTMLElement,
+        inputContainer: document.getElementById('chat-input-container') as HTMLElement,
+        clearBtn: document.getElementById('clear-chat-btn') as HTMLButtonElement,
+        messages: document.getElementById('chat-messages') as HTMLElement,
+        quickChips: document.getElementById('chat-quick-chips') as HTMLElement,
+        input: document.getElementById('chat-input') as HTMLTextAreaElement,
+        sendBtn: document.getElementById('chat-send-btn') as HTMLButtonElement,
+    },
 };

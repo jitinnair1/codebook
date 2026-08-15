@@ -3,8 +3,8 @@ import './input.css';
 import { store } from './core/store';
 import { exercises, curriculum } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
-import { initEditor, getCode, updateEditorTheme } from './core/editor';
-import { configureMarkdown, parseMarkdown, highlightStaticBlocks } from './core/markdown';
+import { loadExerciseCode, setEditorCode, updateEditorTheme } from './core/editor';
+import { configureMarkdown, parseMarkdown, highlightStaticBlocks, escapeHtml } from './core/markdown';
 
 //module imports
 import { elements } from './core/elements';
@@ -24,13 +24,18 @@ import { renderFooter } from './ui/footer';
 import { initShortcuts } from './ui/shortcuts';
 import { initResetProgress } from './ui/resetProgress';
 import { initSettings } from './ui/settings';
+import { initChatPanel } from './ui/chatPanel';
 import { renderLanguageSelector } from './ui/languageSelector';
 import { getLanguageSyntax, prewarmBackgroundLanguages, loadLanguageRunner } from './languages/language-registry';
+
+// Freeze fetch to prevent monkey-patching by injected scripts (API key exfiltration defense)
+Object.defineProperty(window, 'fetch', { value: window.fetch, writable: false, configurable: false });
 
 //initialisation
 initBranding();
 initShortcuts();
 initSettings();
+initChatPanel();
 initResetProgress();
 renderFooter();
 configureMarkdown();
@@ -43,7 +48,7 @@ if (import.meta.env.DEV) {
 const switchTab = initTabs(
     elements.tabs.problem,
     elements.tabs.code,
-    elements.description.mobile,
+    elements.problemAndChatPanel,
     elements.editorConsolePanel
 );
 
@@ -65,6 +70,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
 //render
 let lastRenderedExerciseId: string | null = null;
 let lastRenderedLanguageId: string | null = null;
+let lastRenderedCompletedIds: string[] = [];
 
 function render() {
     const { currentExerciseId, currentLanguageId, completedIds } = store.getState();
@@ -72,19 +78,20 @@ function render() {
     const prevExerciseId = lastRenderedExerciseId;
     const prevLanguageId = lastRenderedLanguageId;
 
+    const isInitial = prevExerciseId === null || prevLanguageId === null;
     const isExerciseChanged = prevExerciseId !== null && currentExerciseId !== prevExerciseId;
     const isLanguageChanged = prevLanguageId !== null && currentLanguageId !== prevLanguageId;
+    const isCompletedChanged = completedIds.length !== lastRenderedCompletedIds.length ||
+        completedIds.some((id, idx) => id !== lastRenderedCompletedIds[idx]);
+
+    // If nothing relevant to the main view changed (e.g. chat messages or settings), avoid re-rendering or touching editor
+    if (!isInitial && !isExerciseChanged && !isLanguageChanged && !isCompletedChanged) {
+        return;
+    }
 
     lastRenderedExerciseId = currentExerciseId;
     lastRenderedLanguageId = currentLanguageId;
-
-    //if language or exercise changed, save state for previous config
-    if ((isExerciseChanged || isLanguageChanged) && prevExerciseId && prevLanguageId) {
-        const currentCode = getCode();
-        if (currentCode) {
-            store.getState().saveUserCode(prevExerciseId, prevLanguageId, currentCode);
-        }
-    }
+    lastRenderedCompletedIds = [...completedIds];
 
     const currentEx = exercises.find(e => e.id === currentExerciseId);
 
@@ -92,45 +99,55 @@ function render() {
 
     const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
 
-    //render description
-    const descHtml = parseMarkdown(currentEx.description);
-    const titleHtml = `<h1 class="text-3xl font-bold mb-6 text-fg-primary">${currentEx.id} ${currentEx.title}</h1>`;
-    const fullContent = titleHtml + descHtml;
+    // If exercise or language changed (or initial load), update problem statement, language selector and editor
+    if (isInitial || isExerciseChanged || isLanguageChanged) {
+        //render description
+        const descHtml = parseMarkdown(currentEx.description);
+        const titleHtml = `<h1 class="text-3xl font-bold mb-6 text-fg-primary">${escapeHtml(currentEx.id)} ${escapeHtml(currentEx.title)}</h1>`;
+        const fullContent = titleHtml + descHtml;
 
-    if (elements.description.desktop) elements.description.desktop.innerHTML = fullContent;
-    if (elements.description.mobile) elements.description.mobile.innerHTML = fullContent;
+        if (elements.description.desktop) elements.description.desktop.innerHTML = fullContent;
+        if (elements.description.mobile) elements.description.mobile.innerHTML = fullContent;
 
-    //update nav
-    if (navActions) navActions.updateNavState(currentExerciseId);
+        //update nav
+        if (navActions) navActions.updateNavState(currentExerciseId);
 
-    //highlight static blocks
-    highlightStaticBlocks();
+        //highlight static blocks
+        highlightStaticBlocks();
 
-    //sidebar & progress
+        //language selector
+        renderLanguageSelector(elements.languageSelectorContainer, currentEx);
+
+        const syntaxExtension = getLanguageSyntax(currentLanguageId);
+
+        //initialize editor with user code (loadExerciseCode automatically saves prior context)
+        const editorText = store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode;
+        loadExerciseCode(currentExerciseId, currentLanguageId, editorText, syntaxExtension, () => {
+            showPopup('Saved!');
+        });
+
+        //reset console on exercise or language switch
+        if (isExerciseChanged || isLanguageChanged) {
+            elements.console.textContent = "// Ready...";
+        }
+    }
+
+    //sidebar & progress (updates on exercise switch or completion changes)
     renderSidebar(elements.sidebar.list, curriculum, currentExerciseId, completedIds);
     renderProgressBar(elements.progressContainer, curriculum, currentExerciseId, completedIds);
-
-    //language selector
-    renderLanguageSelector(elements.languageSelectorContainer, currentEx);
-
-    const syntaxExtension = getLanguageSyntax(currentLanguageId);
-
-    //initialize editor with user code
-    const editorText = store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode;
-    initEditor(editorText, syntaxExtension, () => {
-        store.getState().saveUserCode(currentExerciseId, currentLanguageId, getCode());
-        showPopup('Saved!');
-    });
-
-    //reset console on exercise or language switch
-    if (isExerciseChanged || isLanguageChanged) {
-        elements.console.textContent = "// Ready...";
-    }
 }
 
 
 //event listeners
 store.subscribe(render);
+
+if ((store as any).persist?.onFinishHydration) {
+    (store as any).persist.onFinishHydration(() => {
+        lastRenderedExerciseId = null;
+        lastRenderedLanguageId = null;
+        render();
+    });
+}
 
 //run button
 elements.runBtn.addEventListener('click', () => runner.run());
@@ -142,7 +159,9 @@ if (elements.resetBtn) {
         const currentEx = exercises.find(e => e.id === currentExerciseId);
         if (!currentEx) return;
         const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
+        setEditorCode(exerciseVariant.initialCode);
         store.getState().saveUserCode(currentExerciseId, currentLanguageId, exerciseVariant.initialCode);
+        showPopup('Reset to starter code');
     });
 }
 

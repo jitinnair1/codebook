@@ -1,5 +1,7 @@
 import { runner } from '../core/runner';
 import { elements } from '../core/elements';
+import { store } from '../core/store';
+import { focusChatInput } from './chatPanel';
 import { ICONS } from './icons';
 
 interface Shortcut {
@@ -16,6 +18,7 @@ const EDITOR_SHORTCUTS: Shortcut[] = [
 
 const NAVIGATION_SHORTCUTS: Shortcut[] = [
     { action: "Run Code", keys: ["Cmd/Ctrl", "Enter"] },
+    { action: "Focus Rubber Duck", keys: ["Cmd/Ctrl", "Shift", "A"] },
     { action: "Previous Lesson", keys: ["Cmd/Ctrl", "["] },
     { action: "Next Lesson", keys: ["Cmd/Ctrl", "]"] },
     { action: "Show Shortcuts", keys: ["?", "or", "F1"] },
@@ -34,11 +37,18 @@ export function initShortcuts() {
     elements.shortcutsBtn?.addEventListener('click', openModal);
     elements.shortcuts.closeBtn?.addEventListener('click', closeModal);
 
-    //close on click outside
+    //close on click outside (only if both mousedown and click originated directly on the backdrop)
+    let isMouseDownOnBackdrop = false;
+
+    elements.shortcuts.modal?.addEventListener('mousedown', (e) => {
+        isMouseDownOnBackdrop = (e.target === elements.shortcuts.modal);
+    });
+
     elements.shortcuts.modal?.addEventListener('click', (e) => {
-        if (e.target === elements.shortcuts.modal) {
+        if (isMouseDownOnBackdrop && e.target === elements.shortcuts.modal) {
             closeModal();
         }
+        isMouseDownOnBackdrop = false;
     });
 
     //close on esc
@@ -57,6 +67,17 @@ export function initShortcuts() {
             e.stopPropagation();
             if (!elements.runBtn.disabled) {
                 runner.run();
+            }
+            return;
+        }
+
+        // focus Rubber Duck input: Cmd/Ctrl + Shift + A
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'a' || e.key === 'A')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const cs = store.getState().chatSettings;
+            if (cs?.enabled) {
+                focusChatInput();
             }
             return;
         }
@@ -129,7 +150,8 @@ function renderShortcuts() {
 
                 if (k === "or") return `<span class="text-fg-muted text-xs mx-1">or</span>`;
 
-                return `<kbd class="bg-bg-app border border-border-default rounded px-1.5 py-0.5 text-xs font-mono text-fg-muted min-w-[20px] text-center inline-block">${label}</kbd>`;
+                return `<kbd class="bg-bg-app border border-border-default rounded px-1.5 py-0.5 text-xs font-mono text-fg-muted
+                min-w-5 text-center inline-block">${label}</kbd>`;
             }).reduce((acc, curr, i) => {
                 if (i === 0) return curr;
                 const prevKey = s.keys[i - 1];

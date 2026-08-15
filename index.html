@@ -5,6 +5,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="color-scheme" content="dark light">
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://cdn.jsdelivr.net;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: https:;
+    connect-src 'self' https: http:;
+    worker-src 'self' blob:;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'none';
+  ">
   <title></title>
 
   <!--//fonts -->
@@ -17,13 +29,14 @@
   <link rel="stylesheet" href="/src/input.css">
 
   <!--//KaTeX -->
+  <!-- TODO: Remove these and add katex via npm + import via vite-->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-    xintegrity="sha384-n8MVd4RsNIU0KOVEMeaYGTAnNKSCpI/8SRouQsMYDHX4GkAeNfG5tyJwv/WnVOCS" crossorigin="anonymous">
+    integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
-    xintegrity="sha384-XjKyOOlVwcjNWFMgZHwExtensionsQ7MTCVYTffsRjKaOOgbaJPfnKjWjiV0KIl3BORwf"
+    integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
     crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-    xintegrity="sha384-+VBxd3r6XgURPiLLnucSUEQGzNMNjEBW3OrK5OKvDir/iQIY5CAncwYqtU3fSFEGD"
+    integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
     crossorigin="anonymous"></script>
 
   <!--//favicon -->
@@ -41,8 +54,8 @@
     class="h-14 border-b border-border-default bg-bg-surface flex items-center justify-between px-8 z-10 shrink-0">
     <a href="#" id="header-brand" class="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
 
-      <div class="text-[30px] opacity-80 flex items-center justify-start leading-none translate-y-[2px]"
-        id="header-logo"></div>
+      <div class="text-[30px] opacity-80 flex items-center justify-start leading-none translate-y-0.5" id="header-logo">
+      </div>
       <div class="flex flex-col justify-center gap-1.5">
         <!-- JN: These are injected by vite during build from site.toml -->
         <h1 id="header-title" class="font-bold text-fg-primary tracking-tight text-lg leading-none"></h1>
@@ -55,7 +68,7 @@
   <div class="flex-1 flex flex-col overflow-hidden relative">
 
     <!-- navigation -->
-    <nav class="flex h-12 border-b border-border-default bg-bg-surface items-center px-8 shrink-0">
+    <nav class="flex h-12 border-b border-border-default bg-bg-surface items-center px-4 sm:px-8 shrink-0">
       <!-- left section -->
       <div class="flex items-center gap-4">
         <button id="sidebar-toggle" class="text-fg-muted hover:text-fg-primary transition-colors cursor-pointer"
@@ -105,7 +118,7 @@
         </button>
 
         <button id="settings-btn"
-          class="hidden md:block p-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-app rounded transition-colors cursor-pointer"
+          class="p-1.5 text-fg-muted hover:text-fg-primary hover:bg-bg-app rounded transition-colors cursor-pointer"
           title="Settings">
         </button>
 
@@ -123,13 +136,13 @@
 
 
     <!-- mobile only tab bar -->
-    <div class="flex md:hidden border-b border-border-default bg-bg-surface shrink-0">
+    <div class="flex h-12 md:hidden border-b border-border-default bg-bg-surface shrink-0">
       <button id="tab-problem"
-        class="flex-1 py-2 text-xs font-bold text-fg-primary border-b-2 border-brand transition-colors">
+        class="flex-1 h-full flex items-center justify-center text-xs font-bold text-fg-primary border-b-2 border-brand transition-colors cursor-pointer">
         Problem
       </button>
       <button id="tab-code"
-        class="flex-1 py-2 text-xs font-bold text-fg-muted hover:text-fg-primary transition-colors border-b-2 border-transparent">
+        class="flex-1 h-full flex items-center justify-center text-xs font-bold text-fg-muted hover:text-fg-primary transition-colors border-b-2 border-transparent cursor-pointer">
         Code
       </button>
     </div>
@@ -141,11 +154,9 @@
       <nav id="sidebar-nav"
         class="absolute inset-y-0 left-0 z-50 w-64 bg-bg-surface border-r border-border-default hidden flex-col shadow-xl lg:static lg:flex lg:shadow-none">
         <div
-          class="h-10 px-8 flex justify-between items-center border-b border-border-default select-none shrink-0 bg-bg-surface order-first md:order-0">
+          class="h-10 px-4 flex justify-between items-center border-b border-border-default select-none shrink-0 bg-bg-surface order-first md:order-0">
           <span class="text-[10px] font-bold text-fg-muted uppercase tracking-wider">Exercises</span>
-          <button id="reset-progress-btn"
-            class="text-fg-muted hover:text-red-500 transition-colors p-1 rounded-md hover:bg-bg-app cursor-pointer"
-            title="Reset Progress">
+          <button id="reset-progress-btn" class="hover:cursor-pointer" title="Reset Progress">
             <!-- trash icon injected via js -->
           </button>
         </div>
@@ -153,20 +164,64 @@
         </div>
       </nav>
 
-      <!-- problem description (desktop) -->
-      <div id="ex-desc-desktop"
-        class="hidden md:block order-1 md:order-0 w-full h-full md:w-1/2 lg:w-5/12 bg-bg-surface border-r
-                 border-border-default overflow-y-auto relative p-8 pb-32 prose prose-invert prose-sm max-w-none">
+      <!-- problem + chat unified column -->
+      <div id="problem-and-chat-panel"
+        class="flex flex-col order-1 md:order-0 w-full h-full md:w-1/2 lg:w-5/12 bg-bg-surface border-r border-border-default min-h-0 min-w-0">
+
+        <!-- unified scroll container (Problem + Rubber Duck stream) -->
+        <div id="problem-and-chat-scroll" class="flex-1 overflow-y-auto min-h-0 relative p-4 sm:p-8 pb-12">
+
+          <!-- problem description -->
+          <div id="ex-desc-desktop" class="prose prose-invert prose-sm max-w-none">
+          </div>
+
+          <!-- Rubber Duck chat section in stream -->
+          <div id="chat-section" class="hidden -mx-4 sm:-mx-8 mt-8">
+            <!-- divider line (same thickness as console) -->
+            <div class="h-0.5 bg-border-default select-none"></div>
+
+            <!-- header like console -->
+            <div
+              class="h-10 px-4 bg-bg-surface text-[10px] font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between select-none border-b border-border-default">
+              <span>Rubber Duck</span>
+              <button id="clear-chat-btn" class="hover:cursor-pointer" title="Clear Chat History">
+              </button>
+            </div>
+
+            <!-- Chat Messages Stream -->
+            <div id="chat-messages" class="px-4 sm:px-8 pt-6 space-y-4 text-xs">
+              <div class="text-xs text-fg-muted leading-relaxed space-y-1 select-none">
+                <p class="text-fg-secondary">Ask for hints, error explanations, or architectural guidance without
+                  spoiling the solution.</p>
+                <p class="text-[11px] text-fg-muted">Click a suggestion below or type a question to get started.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pinned bottom input container (shown when Rubber Duck enabled) -->
+        <div id="chat-input-container" class="hidden flex-col shrink-0 bg-bg-surface">
+          <!-- Quick Start -->
+          <div id="chat-quick-chips"
+            class="px-3 py-1 border-t border-border-default/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 bg-bg-surface">
+            <!-- suggestion injected via js -->
+          </div>
+
+          <!-- Chat Input Area (Flush & Unboxed) -->
+          <div class="border-t border-border-default bg-bg-app px-3 py-1.5 flex items-end gap-2 shrink-0">
+            <textarea id="chat-input" rows="1" placeholder="Ask Rubber Duck... (Enter to send)"
+              class="flex-1 bg-transparent text-xs text-fg-primary placeholder:text-fg-muted outline-none resize-none max-h-24 min-h-5 py-0.5 leading-normal font-sans"></textarea>
+            <button id="chat-send-btn"
+              class="p-1 rounded bg-brand text-white hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
+              title="Send Message" disabled>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- horizontal resize handle -->
       <div id="drag-h-desktop"
-        class="hidden md:block w-0.5 bg-border-default hover:bg-brand cursor-col-resize z-10 transition-colors select-none">
-      </div>
-
-      <!-- problem description (mobile) -->
-      <div id="ex-desc-mobile"
-        class="md:hidden order-1 w-full h-full bg-bg-surface p-8 overflow-y-auto prose prose-invert prose-sm max-w-none">
+        class="hidden md:block w-0.5 bg-border-default hover:bg-brand cursor-col-resize z-10 transition-colors select-none shrink-0">
       </div>
 
       <!-- editor + console panel -->
@@ -267,7 +322,7 @@
     <div id="settings-modal"
       class="hidden fixed inset-0 z-100 items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div
-        class="bg-bg-surface border border-border-default rounded-xl shadow-2xl p-6 w-full max-w-md relative flex flex-col gap-4">
+        class="bg-bg-surface border border-border-default rounded-xl shadow-2xl p-6 w-full max-w-md relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-bold text-fg-primary">Settings</h2>
           <button id="close-settings-btn"
@@ -275,8 +330,102 @@
             <!-- close icon injected via js -->
           </button>
         </div>
-        <div id="settings-content" class="space-y-4">
-          <!-- content injected via js -->
+        <div id="settings-content" class="flex flex-col space-y-4">
+          <!-- Vim Mode -->
+          <div class="hidden md:flex items-center justify-between py-3 border-b border-border-default">
+            <div class="flex flex-col pr-4">
+              <span class="text-sm text-fg-primary font-medium">Enable Vim Mode</span>
+              <span class="text-xs text-fg-muted">Use Vim keybindings in the code editor</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer select-none">
+              <input type="checkbox" id="vim-mode-toggle" class="sr-only peer">
+              <div
+                class="w-11 h-6 bg-border-default peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand">
+              </div>
+            </label>
+          </div>
+
+          <!-- Rubber Duck Assistant Section -->
+          <div class="flex flex-col pt-1">
+            <div class="flex items-center justify-between py-2">
+              <div class="flex flex-col pr-4">
+                <span class="text-sm text-fg-primary font-medium">Rubber Duck</span>
+                <span class="text-xs text-fg-muted">Glorified rubber duck &amp; reviewer (bring your own API
+                  key or setup a local server)</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer select-none">
+                <input type="checkbox" id="chat-mode-toggle" class="sr-only peer">
+                <div
+                  class="w-11 h-6 bg-border-default peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand">
+                </div>
+              </label>
+            </div>
+
+            <!-- Collapsible Chat Settings -->
+            <div id="chat-settings-fields" class="space-y-2.5 pt-2 pb-1 hidden">
+              <!-- Security Notice -->
+              <div
+                class="p-2.5 rounded-lg bg-bg-app border border-border-default text-[11px] text-fg-muted leading-relaxed">
+                <span class="font-semibold text-fg-primary">🔒 Encrypted Storage:</span>
+                Credentials are encrypted with Web Crypto (AES-GCM 256-bit) and sent directly to your configured
+                endpoint.
+              </div>
+
+              <!-- Endpoint Selector & Configuration Container -->
+              <div id="chat-endpoint-section" class="flex flex-col space-y-1.5">
+                <!-- dynamically rendered in settings.ts -->
+              </div>
+
+              <!-- Model Selection / Dropdown -->
+              <div class="flex flex-col space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-semibold text-fg-primary">
+                    Model Selection
+                  </label>
+                  <button type="button" id="refresh-models-btn"
+                    class="text-[10px] text-fg-muted hover:text-fg-primary hover:underline cursor-pointer flex items-center gap-1">
+                    ↻ Refresh Models
+                  </button>
+                </div>
+
+                <div id="chat-model-container">
+                  <!-- dynamically rendered -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Backup & Restore Section -->
+          <div class="flex flex-col pt-3 border-t border-border-default space-y-2.5">
+            <div class="flex flex-col">
+              <span class="text-sm text-fg-primary font-medium">Backup &amp; Restore</span>
+              <span class="text-xs text-fg-muted">Export or restore your progress, saved code, chat history, and settings.</span>
+            </div>
+
+            <!-- Include API keys toggle -->
+            <label class="flex items-center gap-2 text-xs text-fg-secondary cursor-pointer select-none">
+              <input type="checkbox" id="backup-include-keys" class="rounded border-border-default text-brand focus:ring-0 focus:outline-none cursor-pointer">
+              <span>Include API keys in export <span class="text-[10px] text-fg-muted">(disabled by default for safety)</span></span>
+            </label>
+
+            <!-- Export / Import Action Buttons -->
+            <div class="flex items-center gap-2 pt-0.5">
+              <button type="button" id="export-backup-btn"
+                class="px-3 py-1.5 text-xs font-medium text-fg-primary bg-bg-app hover:bg-border-default border border-border-default rounded-md transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs">
+                <span id="export-backup-icon" class="flex items-center justify-center"></span>
+                <span>Export Backup</span>
+              </button>
+              <button type="button" id="import-backup-btn"
+                class="px-3 py-1.5 text-xs font-medium text-fg-primary bg-bg-app hover:bg-border-default border border-border-default rounded-md transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs">
+                <span id="import-backup-icon" class="flex items-center justify-center"></span>
+                <span>Import Backup</span>
+              </button>
+              <input type="file" id="import-backup-input" accept=".json,application/json" class="hidden" />
+            </div>
+
+            <!-- Feedback / Status Message Container -->
+            <div id="backup-status-msg" class="hidden text-xs rounded-md p-2"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -295,9 +444,11 @@
             <div>
               <h2 class="text-lg font-bold text-fg-primary leading-tight flex items-center gap-2">
                 Exercise Speedrunner & Verifier
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-brand/15 text-brand font-mono uppercase tracking-wider font-semibold">Dev</span>
+                <span
+                  class="text-[10px] px-1.5 py-0.5 rounded bg-brand/15 text-brand font-mono uppercase tracking-wider font-semibold">Dev</span>
               </h2>
-              <p class="text-xs text-fg-muted">Executes reference solutions across all curriculum exercises and runtimes.</p>
+              <p class="text-xs text-fg-muted">Executes reference solutions across all curriculum exercises and
+                runtimes.</p>
             </div>
           </div>
           <button id="close-speedrun-btn"
@@ -308,43 +459,80 @@
         </div>
 
         <!-- Controls and Filters -->
-        <div class="px-6 py-3 bg-bg-app border-b border-border-default flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-fg-muted uppercase tracking-wider">Language:</span>
-            <div id="speedrun-lang-filters" class="flex items-center gap-1.5 flex-wrap">
-              <!-- Filter buttons dynamically rendered -->
-            </div>
+        <div
+          class="px-6 py-3 bg-bg-app border-b border-border-default flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xs font-semibold text-fg-muted uppercase tracking-wider">Target:</span>
+            <select id="speedrun-lang-select"
+              class="bg-bg-surface text-xs font-medium text-fg-primary border border-border-default rounded-lg px-3 py-1.5 focus:outline-none focus:border-brand cursor-pointer shadow-xs">
+              <option value="all">All Languages</option>
+            </select>
           </div>
 
           <div class="flex items-center gap-2">
+            <button id="speedrun-export-btn"
+              class="hidden px-3 py-1.5 text-xs font-medium text-fg-secondary hover:text-fg-primary bg-bg-surface hover:bg-bg-app border border-border-default rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Export results as JSON">
+              <span id="speedrun-export-icon" class="flex items-center justify-center"></span>
+              <span id="speedrun-export-text">Export (JSON)</span>
+            </button>
             <button id="speedrun-start-btn"
-              class="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:opacity-90 rounded-md transition-all cursor-pointer flex items-center gap-1.5 shadow-sm">
-              <span>Start Speedrun</span>
+              class="px-4 py-1.5 text-xs font-semibold text-white bg-brand hover:opacity-90 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-sm">
+              <span id="speedrun-start-btn-text">Start Speedrun</span>
             </button>
           </div>
         </div>
 
         <!-- Progress Section -->
         <div id="speedrun-progress-container"
-          class="hidden px-6 py-3 bg-bg-surface/50 border-b border-border-default shrink-0">
-          <div class="flex items-center justify-between text-xs text-fg-secondary mb-1.5 font-medium">
+          class="hidden px-6 py-3 bg-bg-surface/50 border-b border-border-default shrink-0 space-y-2.5">
+          <div class="flex items-center justify-between text-xs text-fg-secondary font-medium">
             <span id="speedrun-progress-status">Ready</span>
-            <span id="speedrun-progress-counter">0 / 0</span>
+            <span id="speedrun-progress-counter" class="font-mono text-[11px]">0 / 0</span>
           </div>
-          <div class="w-full bg-border-default rounded-full h-2 overflow-hidden">
+          <div class="w-full bg-border-default rounded-full h-1.5 overflow-hidden">
             <div id="speedrun-progress-bar" class="bg-brand h-full w-0 transition-all duration-150"></div>
           </div>
-          <div id="speedrun-stats" class="flex items-center gap-4 mt-2 text-xs">
-            <span class="text-green-500 font-medium" id="stat-passed">Passed: 0</span>
-            <span class="text-yellow-500 font-medium" id="stat-failed">Failed: 0</span>
-            <span class="text-red-500 font-medium" id="stat-errors">Errors: 0</span>
-            <span class="text-fg-muted font-medium" id="stat-missing">Missing: 0</span>
-            <span class="text-fg-muted ml-auto font-mono text-[11px]" id="stat-time">0.00s</span>
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-xs">
+            <!-- Clickable Filter Badges -->
+            <div id="speedrun-status-filters" class="flex items-center gap-1.5 flex-wrap">
+              <button data-filter="all" id="filter-all"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-brand text-white shadow-xs transition-all cursor-pointer">
+                All: <span id="stat-all" class="font-bold ml-0.5">0</span>
+              </button>
+              <button data-filter="passed" id="filter-passed"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-bg-surface text-green-500 hover:bg-green-500/10 hover:border-green-500/30 transition-all cursor-pointer">
+                Passed: <span id="stat-passed" class="font-bold ml-0.5">0</span>
+              </button>
+              <button data-filter="failed" id="filter-failed"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-bg-surface text-yellow-500 hover:bg-yellow-500/10 hover:border-yellow-500/30 transition-all cursor-pointer">
+                Failed: <span id="stat-failed" class="font-bold ml-0.5">0</span>
+              </button>
+              <button data-filter="error" id="filter-errors"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-bg-surface text-red-500 hover:bg-red-500/10 hover:border-red-500/30 transition-all cursor-pointer">
+                Errors: <span id="stat-errors" class="font-bold ml-0.5">0</span>
+              </button>
+              <button data-filter="missing_solution" id="filter-missing"
+                class="speedrun-status-pill px-2.5 py-1 rounded-md font-medium text-xs border border-border-default bg-bg-surface text-fg-muted hover:bg-zinc-500/10 hover:border-zinc-500/30 transition-all cursor-pointer">
+                Missing: <span id="stat-missing" class="font-bold ml-0.5">0</span>
+              </button>
+            </div>
+
+            <!-- Sort and Total Time -->
+            <div class="flex items-center gap-3 ml-auto">
+              <button id="speedrun-sort-btn"
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border border-border-default bg-bg-surface text-fg-muted hover:text-fg-primary hover:bg-bg-app transition-colors cursor-pointer"
+                title="Sort tests by execution duration">
+                <span id="speedrun-sort-icon" class="flex items-center justify-center"></span>
+                <span id="speedrun-sort-label">Sort: Default</span>
+              </button>
+              <span class="text-fg-muted font-mono text-[11px]" id="stat-time">0.00s</span>
+            </div>
           </div>
         </div>
 
         <!-- Results Stream / Log List -->
-        <div id="speedrun-results-list" class="flex-1 overflow-y-auto p-6 space-y-2.5 min-h-[220px]">
+        <div id="speedrun-results-list" class="flex-1 overflow-y-auto p-6 space-y-2.5 min-h-55">
           <div class="text-center py-12 text-fg-muted text-sm flex flex-col items-center gap-2">
             <span>Click <strong>Start Speedrun</strong> to test all curriculum solutions against active runtimes.</span>
           </div>

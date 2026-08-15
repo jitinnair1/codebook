@@ -1,5 +1,8 @@
 import { Chapter } from '../core/types';
 import { ICONS } from './icons';
+import { store } from '../core/store';
+
+let isListenerBound = false;
 
 export function renderSidebar(
     sidebarEl: HTMLElement | null,
@@ -8,6 +11,27 @@ export function renderSidebar(
     completedIds: string[]
 ) {
     if (!sidebarEl) return;
+
+    // Attach delegated click listener once to handle clicks reliably
+    if (!isListenerBound) {
+        isListenerBound = true;
+        sidebarEl.addEventListener('click', (e) => {
+            const item = (e.target as HTMLElement).closest<HTMLElement>('.nav-item');
+            if (!item) return;
+            const exId = item.getAttribute('data-exercise-id');
+            if (exId) {
+                window.location.hash = '#' + exId;
+                store.getState().setCurrent(exId);
+
+                // Auto-close sidebar on mobile after selecting an exercise
+                const sidebarNav = document.getElementById('sidebar-nav');
+                if (sidebarNav && window.innerWidth < 1024 && !sidebarNav.classList.contains('hidden')) {
+                    sidebarNav.classList.add('hidden');
+                    sidebarNav.classList.remove('flex');
+                }
+            }
+        });
+    }
 
     sidebarEl.innerHTML = curriculum.map(chapter => {
         const chapterHeader = `<div class="px-8 py-1 pb-0 text-[10px] font-bold text-fg-muted uppercase">${chapter.title}</div>`;
@@ -18,7 +42,7 @@ export function renderSidebar(
             const completed = isCompleted ? 'opacity-40' : '';
 
             return `<div class="nav-item cursor-pointer py-2 pl-8 pr-4 text-sm flex justify-between items-center transition-colors ${active} ${completed}"
-                        onclick="location.hash='#${e.id}'">
+                        data-exercise-id="${e.id}">
                       <span>${e.id} ${e.title}</span>
                       ${isCompleted ? ICONS.CHECK : ''}
                     </div>`;

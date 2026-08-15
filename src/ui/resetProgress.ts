@@ -1,5 +1,7 @@
 import { elements } from '../core/elements';
 import { ICONS } from './icons';
+import { store } from '../core/store';
+import { abortAllStreams } from './chatPanel';
 
 export function initResetProgress() {
     if (elements.resetProgressBtn) {
@@ -14,15 +16,23 @@ export function initResetProgress() {
     elements.resetProgress.cancelBtn?.addEventListener('click', closeModal);
 
     elements.resetProgress.confirmBtn?.addEventListener('click', () => {
-        localStorage.removeItem('storage');
+        abortAllStreams();
+        store.getState().resetProgress();
         window.location.reload();
     });
 
-    //close on click outside or Esc
+    //close on click outside (only if both mousedown and click originated directly on the backdrop)
+    let isMouseDownOnBackdrop = false;
+
+    elements.resetProgress.modal?.addEventListener('mousedown', (e) => {
+        isMouseDownOnBackdrop = (e.target === elements.resetProgress.modal);
+    });
+
     elements.resetProgress.modal?.addEventListener('click', (e) => {
-        if (e.target === elements.resetProgress.modal) {
+        if (isMouseDownOnBackdrop && e.target === elements.resetProgress.modal) {
             closeModal();
         }
+        isMouseDownOnBackdrop = false;
     });
 
     document.addEventListener('keydown', (e) => {

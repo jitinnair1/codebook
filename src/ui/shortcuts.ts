@@ -34,11 +34,18 @@ export function initShortcuts() {
     elements.shortcutsBtn?.addEventListener('click', openModal);
     elements.shortcuts.closeBtn?.addEventListener('click', closeModal);
 
-    //close on click outside
+    //close on click outside (only if both mousedown and click originated directly on the backdrop)
+    let isMouseDownOnBackdrop = false;
+
+    elements.shortcuts.modal?.addEventListener('mousedown', (e) => {
+        isMouseDownOnBackdrop = (e.target === elements.shortcuts.modal);
+    });
+
     elements.shortcuts.modal?.addEventListener('click', (e) => {
-        if (e.target === elements.shortcuts.modal) {
+        if (isMouseDownOnBackdrop && e.target === elements.shortcuts.modal) {
             closeModal();
         }
+        isMouseDownOnBackdrop = false;
     });
 
     //close on esc
@@ -129,7 +136,8 @@ function renderShortcuts() {
 
                 if (k === "or") return `<span class="text-fg-muted text-xs mx-1">or</span>`;
 
-                return `<kbd class="bg-bg-app border border-border-default rounded px-1.5 py-0.5 text-xs font-mono text-fg-muted min-w-[20px] text-center inline-block">${label}</kbd>`;
+                return `<kbd class="bg-bg-app border border-border-default rounded px-1.5 py-0.5 text-xs font-mono text-fg-muted
+                min-w-5 text-center inline-block">${label}</kbd>`;
             }).reduce((acc, curr, i) => {
                 if (i === 0) return curr;
                 const prevKey = s.keys[i - 1];

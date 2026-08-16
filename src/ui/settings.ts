@@ -3,6 +3,8 @@ import { elements } from '../core/elements';
 import { store, ChatSettings, ChatEndpoint } from '../core/store';
 import { updateEditorVimMode } from '../core/editor';
 import { ICONS } from './icons';
+import { abortAllStreams } from './chatPanel';
+import { showConfirmDialog } from './resetProgress';
 import siteConfig from '../../site.toml';
 
 let cachedModels: string[] = [];
@@ -22,6 +24,9 @@ export function initSettings() {
     }
     if (elements.settings.importBackupIcon) {
         elements.settings.importBackupIcon.innerHTML = ICONS.UPLOAD;
+    }
+    if (elements.settings.clearStorageIcon) {
+        elements.settings.clearStorageIcon.innerHTML = ICONS.TRASH;
     }
 
     // Bind static event listeners once
@@ -107,6 +112,11 @@ function bindStaticListeners() {
     elements.settings.importBackupInput?.addEventListener('change', (e) => {
         handleImportBackup(e);
     });
+
+    // Clear / Nuke Local Storage button
+    elements.settings.clearStorageBtn?.addEventListener('click', () => {
+        handleClearLocalStorage();
+    });
 }
 
 function syncSettingsUI() {
@@ -143,6 +153,7 @@ function syncSettingsUI() {
     renderEndpointSelector(chatSettings);
     renderKeyContainer(chatSettings);
     renderModelSelector(chatSettings);
+    updateStorageUsageDisplay();
 }
 
 function renderEndpointSelector(chatSettings: ChatSettings) {
@@ -902,6 +913,56 @@ async function handleImportBackup(e: Event) {
     } finally {
         input.value = '';
     }
+}
+
+function formatBytes(bytes: number, decimals = 1): string {
+    if (bytes <= 0) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const formatted = parseFloat((bytes / Math.pow(k, i)).toFixed(dm));
+    return `${formatted} ${sizes[i] || 'B'}`;
+}
+
+export function calculateLocalStorageUsage(): { bytes: number; formatted: string } {
+    let totalBytes = 0;
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key) {
+                const val = localStorage.getItem(key) || '';
+                // UTF-16 strings take ~2 bytes per character
+                totalBytes += (key.length + val.length) * 2;
+            }
+        }
+    } catch {
+        // Handle potential sandbox/quota restrictions
+    }
+    return {
+        bytes: totalBytes,
+        formatted: formatBytes(totalBytes),
+    };
+}
+
+function updateStorageUsageDisplay() {
+    if (elements.settings.storageUsageDisplay) {
+        const usage = calculateLocalStorageUsage();
+        elements.settings.storageUsageDisplay.textContent = `${usage.formatted} used`;
+    }
+}
+
+function handleClearLocalStorage() {
+    showConfirmDialog({
+        title: 'Nuke Local Storage',
+        message: 'Are you sure you want to delete all local storage? This will permanently wipe all your exercise progress, saved code, chat history, credentials, and settings. This action cannot be undone.',
+        confirmText: 'Nuke All Storage',
+        onConfirm: () => {
+            abortAllStreams();
+            localStorage.clear();
+            window.location.reload();
+        },
+    });
 }
 
 

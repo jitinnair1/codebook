@@ -52,15 +52,15 @@ export interface AppState {
 
 const defaultChatSettings: ChatSettings = {
   enabled: false,
-  baseUrl: 'https://api.openai.com/v1',
+  baseUrl: '',
   apiKey: '',
   model: '',
   selectedEndpointId: 'default-endpoint',
   endpoints: [
     {
       id: 'default-endpoint',
-      name: 'OpenAI API',
-      baseUrl: 'https://api.openai.com/v1',
+      name: '',
+      baseUrl: '',
       apiKey: '',
       model: '',
     },
@@ -99,7 +99,7 @@ const encryptedStateStorage: StateStorage = {
               ep.apiKey = await decryptSecret(ep.apiKey);
             }
             if (!ep.name) {
-              ep.name = ep.baseUrl?.includes('openai.com') ? 'OpenAI API' : (ep.baseUrl ? 'Custom Endpoint' : 'OpenAI API');
+              ep.name = ep.baseUrl?.includes('openai.com') ? 'OpenAI API' : (ep.baseUrl ? 'Custom Endpoint' : 'Endpoint 1');
             }
           }
         } else {
@@ -107,8 +107,8 @@ const encryptedStateStorage: StateStorage = {
           cs.endpoints = [
             {
               id: cs.selectedEndpointId || 'default-endpoint',
-              name: cs.baseUrl?.includes('openai.com') ? 'OpenAI API' : (cs.baseUrl ? 'Custom Endpoint' : 'OpenAI API'),
-              baseUrl: cs.baseUrl || 'https://api.openai.com/v1',
+              name: cs.baseUrl?.includes('openai.com') ? 'OpenAI API' : (cs.baseUrl ? 'Custom Endpoint' : 'Endpoint 1'),
+              baseUrl: cs.baseUrl || '',
               apiKey: cs.apiKey || '',
               model: cs.model || '',
             },
@@ -208,8 +208,8 @@ export const store = createStore<AppState>()(
           updated.endpoints = [
             {
               id: updated.selectedEndpointId || 'default-endpoint',
-              name: updated.baseUrl?.includes('openai.com') ? 'OpenAI API' : 'Custom Endpoint',
-              baseUrl: updated.baseUrl || 'https://api.openai.com/v1',
+              name: updated.baseUrl?.includes('openai.com') ? 'OpenAI API' : (updated.baseUrl ? 'Custom Endpoint' : 'Endpoint 1'),
+              baseUrl: updated.baseUrl || '',
               apiKey: updated.apiKey || '',
               model: updated.model || '',
             },

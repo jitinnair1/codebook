@@ -83,15 +83,19 @@ function bindStaticListeners() {
     // Chat toggle listener
     elements.settings.chatToggle?.addEventListener('change', (e) => {
         const enabled = (e.target as HTMLInputElement).checked;
+        if (enabled) {
+            isDetailsExpanded = true;
+        }
         store.getState().setChatSettings({ enabled });
         if (enabled) {
             elements.settings.chatFields?.classList.remove('hidden');
-            if (cachedModels.length === 0) {
+            if (cachedModels.length === 0 && store.getState().chatSettings.baseUrl) {
                 triggerModelFetch();
             }
         } else {
             elements.settings.chatFields?.classList.add('hidden');
         }
+        syncSettingsUI();
     });
 
     // Refresh Models button
@@ -123,15 +127,15 @@ function syncSettingsUI() {
     const isVimEnabled = store.getState().vimMode;
     const chatSettings = store.getState().chatSettings || {
         enabled: false,
-        baseUrl: 'https://api.openai.com/v1',
+        baseUrl: '',
         apiKey: '',
         model: '',
         selectedEndpointId: 'default-endpoint',
         endpoints: [
             {
                 id: 'default-endpoint',
-                name: 'OpenAI API',
-                baseUrl: 'https://api.openai.com/v1',
+                name: 'Endpoint 1',
+                baseUrl: '',
                 apiKey: '',
                 model: '',
             }
@@ -162,7 +166,8 @@ function renderEndpointSelector(chatSettings: ChatSettings) {
     const endpoints = chatSettings.endpoints || [];
     const selectedId = chatSettings.selectedEndpointId;
     const currentEndpoint = endpoints.find(ep => ep.id === selectedId) || endpoints[0];
-    const canDelete = endpoints.length > 1;
+    const hasData = !!(currentEndpoint?.name?.trim() || currentEndpoint?.baseUrl?.trim() || currentEndpoint?.apiKey?.trim());
+    const canDelete = endpoints.length > 1 || hasData;
 
     elements.settings.endpointSection.innerHTML = `
         <div class="flex flex-col space-y-1.5">
@@ -412,11 +417,13 @@ function attachEndpointListeners() {
     // Delete endpoint button
     deleteBtn?.addEventListener('click', () => {
         const cs = store.getState().chatSettings;
-        if (cs.endpoints && cs.endpoints.length > 1) {
-            const updated = cs.endpoints.filter(ep => ep.id !== cs.selectedEndpointId);
+        const endpoints = cs.endpoints || [];
+        cachedModels = [];
+        modelFetchError = null;
+
+        if (endpoints.length > 1) {
+            const updated = endpoints.filter(ep => ep.id !== cs.selectedEndpointId);
             const nextSelected = updated[0];
-            cachedModels = [];
-            modelFetchError = null;
             store.getState().setChatSettings({
                 endpoints: updated,
                 selectedEndpointId: nextSelected.id,
@@ -428,6 +435,23 @@ function attachEndpointListeners() {
             if (nextSelected.baseUrl) {
                 triggerModelFetch();
             }
+        } else {
+            const resetEp: ChatEndpoint = {
+                id: 'default-endpoint',
+                name: '',
+                baseUrl: '',
+                apiKey: '',
+                model: '',
+            };
+            store.getState().setChatSettings({
+                endpoints: [resetEp],
+                selectedEndpointId: resetEp.id,
+                baseUrl: '',
+                apiKey: '',
+                model: '',
+            });
+            isDetailsExpanded = true;
+            syncSettingsUI();
         }
     });
 
@@ -739,11 +763,14 @@ async function fetchAvailableModels(baseUrl: string, apiKey: string): Promise<{ 
 }
 
 function openModal() {
+    const cs = store.getState().chatSettings;
+    if (cs.enabled && !cs.baseUrl) {
+        isDetailsExpanded = true;
+    }
     syncSettingsUI();
     elements.settings.modal?.classList.remove('hidden');
     elements.settings.modal?.classList.add('flex');
 
-    const cs = store.getState().chatSettings;
     if (cs.baseUrl && cachedModels.length === 0 && !isFetchingModels) {
         triggerModelFetch();
     }

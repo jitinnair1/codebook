@@ -156,7 +156,6 @@ export function focusChatInput() {
   const cs = store.getState().chatSettings;
   if (cs?.enabled && elements.chat.input) {
     elements.chat.input.focus();
-    scrollToChat(true);
   }
 }
 
@@ -195,7 +194,6 @@ function handleQuickChipClick(chip: QuickStart) {
   if (elements.chat.input) {
     elements.chat.input.value = chip.prompt;
     handleInputResize();
-    scrollToChat(true);
     submitUserMessage();
   }
 }
@@ -345,10 +343,6 @@ function bindPanelEvents() {
   const sendBtn = elements.chat.sendBtn;
 
   if (input) {
-    input.addEventListener('focus', () => {
-      scrollToChat(true);
-    });
-
     input.addEventListener('input', handleInputResize);
 
     input.addEventListener('keydown', (e) => {

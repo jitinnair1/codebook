@@ -1,1 +1,0 @@
-import{t as e}from"./base-adapter-DIEPVRc7.js";var t=new class extends e{name=`typescript`;createWorker(){return new Worker(new URL(``+new URL(`worker-BvsnC04n.js`,import.meta.url).href,``+import.meta.url),{type:`module`})}};export{t as default,t as runner};

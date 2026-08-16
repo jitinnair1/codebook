@@ -8,6 +8,9 @@ export interface VerificationItemResult {
   exerciseId: string;
   exerciseTitle: string;
   languageId: string;
+  description?: string;
+  solutionCode?: string;
+  testCode?: string;
   status: VerificationStatus;
   durationMs: number;
   error?: string;
@@ -51,7 +54,10 @@ export async function verifySingleExercise(
   const baseResult: Omit<VerificationItemResult, 'status' | 'durationMs'> = {
     exerciseId: exercise.id,
     exerciseTitle: exercise.title,
-    languageId
+    languageId,
+    description: exercise.description,
+    solutionCode: variant.solutionCode || '',
+    testCode: variant.testCode || ''
   };
 
   if (!variant.solutionCode || !variant.solutionCode.trim()) {

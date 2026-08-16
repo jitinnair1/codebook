@@ -3,6 +3,8 @@ import {
   type VerificationItemResult
 } from '../core/verifier';
 import { getEnabledLanguages } from '../languages/language-registry';
+import { getExercise } from '../exercises/exercise-registry';
+import { getExerciseVariant } from '../core/types';
 import { elements } from '../core/elements';
 import { ICONS } from './icons';
 
@@ -254,8 +256,22 @@ function updateExportButton() {
 }
 
 function handleExportCases() {
-  const exportList = getExportableResults();
-  if (exportList.length === 0) return;
+  const rawList = getExportableResults();
+  if (rawList.length === 0) return;
+
+  const exportList = rawList.map((item) => {
+    if (item.description !== undefined && item.solutionCode !== undefined && item.testCode !== undefined) {
+      return item;
+    }
+    const ex = getExercise(item.exerciseId);
+    const variant = ex ? getExerciseVariant(ex, item.languageId) : undefined;
+    return {
+      ...item,
+      description: item.description ?? ex?.description ?? '',
+      solutionCode: item.solutionCode ?? variant?.solutionCode ?? '',
+      testCode: item.testCode ?? variant?.testCode ?? ''
+    };
+  });
 
   const dataStr = JSON.stringify(exportList, null, 2);
   const blob = new Blob([dataStr], { type: 'application/json' });

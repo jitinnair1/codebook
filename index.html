@@ -181,11 +181,21 @@
             <div class="h-0.5 bg-border-default select-none"></div>
 
             <!-- header like console -->
-            <div
-              class="h-10 px-4 bg-bg-surface text-[10px] font-bold text-fg-muted uppercase tracking-wider flex items-center justify-between select-none border-b border-border-default">
-              <span>Rubber Duck</span>
-              <button id="clear-chat-btn" class="hover:cursor-pointer" title="Clear Chat History">
-              </button>
+            <!-- Minimal Browser-Style Conversation Tabs Bar -->
+            <div class="min-h-9 px-2 bg-bg-surface flex items-center justify-between select-none border-b border-border-default gap-2">
+              <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0 py-1" id="chat-tabs-wrapper">
+                <span class="text-[10px] font-bold text-fg-muted uppercase tracking-wider px-2 shrink-0 select-none">Rubber Duck</span>
+                <div id="chat-tabs-container" class="flex items-center gap-1 min-w-0">
+                  <!-- Dynamic conversation tabs injected via JS -->
+                </div>
+                <button type="button" id="new-chat-tab-btn" class="p-1 hover:bg-bg-app rounded text-fg-muted hover:text-fg-primary transition-colors cursor-pointer shrink-0" title="New conversation">
+                </button>
+              </div>
+
+              <div class="flex items-center gap-1 shrink-0">
+                <button id="clear-chat-btn" class="p-1 hover:bg-bg-app rounded text-fg-muted hover:text-fg-primary transition-colors cursor-pointer" title="Clear Chat Messages">
+                </button>
+              </div>
             </div>
 
             <!-- Chat Messages Stream -->

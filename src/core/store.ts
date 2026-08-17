@@ -12,6 +12,16 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export interface ChatConversation {
+  id: string;
+  exerciseId: string;
+  languageId: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: ChatMessage[];
+}
+
 export interface ChatEndpoint {
   id: string;
   name?: string;
@@ -43,9 +53,15 @@ export interface AppState {
   setVimMode: (enabled: boolean) => void;
   chatSettings: ChatSettings;
   setChatSettings: (settings: Partial<ChatSettings>) => void;
-  chatHistory: Record<string, ChatMessage[]>;
-  addChatMessage: (exerciseId: string, message: ChatMessage) => void;
-  clearChatHistory: (exerciseId: string) => void;
+  chatConversations: Record<string, ChatConversation[]>;
+  activeConversationId: Record<string, string>;
+  createConversation: (exerciseId: string, languageId: string, title?: string) => string;
+  setActiveConversation: (exerciseId: string, conversationId: string) => void;
+  updateConversationLanguage: (exerciseId: string, conversationId: string, languageId: string) => void;
+  deleteConversation: (exerciseId: string, conversationId: string) => void;
+  getActiveConversation: (exerciseId: string) => ChatConversation | undefined;
+  addChatMessage: (exerciseId: string, message: ChatMessage, conversationId?: string) => void;
+  clearChatHistory: (exerciseId: string, conversationId?: string) => void;
   resetProgress: () => void;
   restoreBackup: (backupState: Partial<AppState>) => void;
 }
@@ -78,6 +94,33 @@ const syncStateStorage: StateStorage = {
       if (parsed?.state?.aiSettings && !parsed?.state?.chatSettings) {
         parsed.state.chatSettings = parsed.state.aiSettings;
         delete parsed.state.aiSettings;
+      }
+
+      // Migrate legacy chatHistory to chatConversations if present
+      if (parsed?.state?.chatHistory && !parsed?.state?.chatConversations) {
+        const legacyHistory = parsed.state.chatHistory;
+        const migratedConvs: Record<string, ChatConversation[]> = {};
+        const migratedActive: Record<string, string> = {};
+        for (const [exId, msgs] of Object.entries(legacyHistory)) {
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            const convId = `conv-${Date.now()}-${exId}`;
+            migratedConvs[exId] = [
+              {
+                id: convId,
+                exerciseId: exId,
+                languageId: parsed.state.currentLanguageId || defaultLanguageId,
+                title: 'Chat 1',
+                createdAt: (msgs[0] as any)?.timestamp || Date.now(),
+                updatedAt: (msgs[msgs.length - 1] as any)?.timestamp || Date.now(),
+                messages: msgs as ChatMessage[],
+              },
+            ];
+            migratedActive[exId] = convId;
+          }
+        }
+        parsed.state.chatConversations = migratedConvs;
+        parsed.state.activeConversationId = migratedActive;
+        delete parsed.state.chatHistory;
       }
 
       if (parsed?.state?.chatSettings) {
@@ -183,7 +226,8 @@ export const store = createStore<AppState>()(
       userCode: {},
       vimMode: false,
       chatSettings: defaultChatSettings,
-      chatHistory: {},
+      chatConversations: {},
+      activeConversationId: {},
 
       //actions
       markComplete: (id) => {
@@ -254,29 +298,150 @@ export const store = createStore<AppState>()(
         set({ chatSettings: updated });
       },
 
-      addChatMessage: (exerciseId, message) => {
-        const { chatHistory } = get();
-        const currentMessages = chatHistory[exerciseId] || [];
+      createConversation: (exerciseId: string, languageId: string, title?: string) => {
+        const convs = get().chatConversations[exerciseId] || [];
+        const id = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const newConv: ChatConversation = {
+          id,
+          exerciseId,
+          languageId,
+          title: title || `Chat ${convs.length + 1}`,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          messages: [],
+        };
         set({
-          chatHistory: {
-            ...chatHistory,
-            [exerciseId]: [...currentMessages, message],
+          chatConversations: {
+            ...get().chatConversations,
+            [exerciseId]: [...convs, newConv],
+          },
+          activeConversationId: {
+            ...get().activeConversationId,
+            [exerciseId]: id,
+          },
+        });
+        return id;
+      },
+
+      setActiveConversation: (exerciseId: string, conversationId: string) => {
+        set({
+          activeConversationId: {
+            ...get().activeConversationId,
+            [exerciseId]: conversationId,
           },
         });
       },
 
-      clearChatHistory: (exerciseId) => {
-        const { chatHistory } = get();
-        const newHistory = { ...chatHistory };
-        delete newHistory[exerciseId];
-        set({ chatHistory: newHistory });
+      updateConversationLanguage: (exerciseId: string, conversationId: string, languageId: string) => {
+        const currentConvs = get().chatConversations[exerciseId] || [];
+        const updatedConvs = currentConvs.map(c =>
+          c.id === conversationId ? { ...c, languageId } : c
+        );
+        set({
+          chatConversations: {
+            ...get().chatConversations,
+            [exerciseId]: updatedConvs,
+          },
+        });
+      },
+
+      deleteConversation: (exerciseId: string, conversationId: string) => {
+        const currentConvs = get().chatConversations[exerciseId] || [];
+        const updatedConvs = currentConvs.filter(c => c.id !== conversationId);
+        const activeId = get().activeConversationId[exerciseId];
+        let nextActiveId = activeId;
+        if (activeId === conversationId) {
+          nextActiveId = updatedConvs.length > 0 ? updatedConvs[updatedConvs.length - 1].id : '';
+        }
+        set({
+          chatConversations: {
+            ...get().chatConversations,
+            [exerciseId]: updatedConvs,
+          },
+          activeConversationId: {
+            ...get().activeConversationId,
+            [exerciseId]: nextActiveId,
+          },
+        });
+      },
+
+      getActiveConversation: (exerciseId: string) => {
+        const state = get();
+        const convs = state.chatConversations[exerciseId] || [];
+        const activeId = state.activeConversationId[exerciseId];
+        return convs.find(c => c.id === activeId) || convs[0];
+      },
+
+      addChatMessage: (exerciseId: string, message: ChatMessage, conversationId?: string) => {
+        const state = get();
+        let convs = [...(state.chatConversations[exerciseId] || [])];
+        let targetId = conversationId || state.activeConversationId[exerciseId];
+
+        let targetConv = convs.find(c => c.id === targetId);
+        if (!targetConv) {
+          const newId = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          targetConv = {
+            id: newId,
+            exerciseId,
+            languageId: state.currentLanguageId,
+            title: `Chat ${convs.length + 1}`,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            messages: [message],
+          };
+          convs.push(targetConv);
+          targetId = newId;
+        } else {
+          convs = convs.map(c => {
+            if (c.id === targetId) {
+              return {
+                ...c,
+                updatedAt: Date.now(),
+                messages: [...c.messages, message],
+              };
+            }
+            return c;
+          });
+        }
+
+        set({
+          chatConversations: {
+            ...state.chatConversations,
+            [exerciseId]: convs,
+          },
+          activeConversationId: {
+            ...state.activeConversationId,
+            [exerciseId]: targetId,
+          },
+        });
+      },
+
+      clearChatHistory: (exerciseId: string, conversationId?: string) => {
+        const state = get();
+        const targetId = conversationId || state.activeConversationId[exerciseId];
+        if (!targetId) return;
+
+        const convs = (state.chatConversations[exerciseId] || []).map(c => {
+          if (c.id === targetId) {
+            return { ...c, messages: [], updatedAt: Date.now() };
+          }
+          return c;
+        });
+
+        set({
+          chatConversations: {
+            ...state.chatConversations,
+            [exerciseId]: convs,
+          },
+        });
       },
 
       resetProgress: () => {
         set({
           completedIds: [],
           userCode: {},
-          chatHistory: {},
+          chatConversations: {},
+          activeConversationId: {},
           currentExerciseId: exercises[0]?.id || "1.1",
         });
       },
@@ -305,6 +470,40 @@ export const store = createStore<AppState>()(
           };
         }
 
+        let restoredConvs = current.chatConversations;
+        let restoredActive = current.activeConversationId;
+
+        if (backupState.chatConversations && typeof backupState.chatConversations === 'object') {
+          restoredConvs = backupState.chatConversations;
+          if (backupState.activeConversationId && typeof backupState.activeConversationId === 'object') {
+            restoredActive = backupState.activeConversationId;
+          }
+        } else if ((backupState as any).chatHistory && typeof (backupState as any).chatHistory === 'object') {
+          // Backward-compat import from legacy backup format
+          const legacyHistory = (backupState as any).chatHistory;
+          const migratedConvs: Record<string, ChatConversation[]> = {};
+          const migratedActive: Record<string, string> = {};
+          for (const [exId, msgs] of Object.entries(legacyHistory)) {
+            if (Array.isArray(msgs) && msgs.length > 0) {
+              const convId = `conv-${Date.now()}-${exId}`;
+              migratedConvs[exId] = [
+                {
+                  id: convId,
+                  exerciseId: exId,
+                  languageId: backupState.currentLanguageId || current.currentLanguageId,
+                  title: 'Chat 1',
+                  createdAt: (msgs[0] as any)?.timestamp || Date.now(),
+                  updatedAt: (msgs[msgs.length - 1] as any)?.timestamp || Date.now(),
+                  messages: msgs as ChatMessage[],
+                },
+              ];
+              migratedActive[exId] = convId;
+            }
+          }
+          restoredConvs = migratedConvs;
+          restoredActive = migratedActive;
+        }
+
         set({
           currentExerciseId: typeof backupState.currentExerciseId === 'string' ? backupState.currentExerciseId : current.currentExerciseId,
           currentLanguageId: typeof backupState.currentLanguageId === 'string' ? backupState.currentLanguageId : current.currentLanguageId,
@@ -312,7 +511,8 @@ export const store = createStore<AppState>()(
           userCode: (backupState.userCode && typeof backupState.userCode === 'object') ? backupState.userCode : current.userCode,
           vimMode: typeof backupState.vimMode === 'boolean' ? backupState.vimMode : current.vimMode,
           chatSettings: restoredChatSettings,
-          chatHistory: (backupState.chatHistory && typeof backupState.chatHistory === 'object') ? backupState.chatHistory : current.chatHistory,
+          chatConversations: restoredConvs,
+          activeConversationId: restoredActive,
         });
       },
 

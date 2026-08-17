@@ -857,7 +857,8 @@ async function handleExportBackup() {
                 userCode: state.userCode,
                 vimMode: state.vimMode,
                 chatSettings: exportChatSettings,
-                chatHistory: state.chatHistory,
+                chatConversations: state.chatConversations,
+                activeConversationId: state.activeConversationId,
             },
         };
 

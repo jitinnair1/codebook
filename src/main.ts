@@ -26,7 +26,7 @@ import { initResetProgress } from './ui/resetProgress';
 import { initSettings } from './ui/settings';
 import { initChatPanel } from './ui/chatPanel';
 import { renderLanguageSelector } from './ui/languageSelector';
-import { getLanguageSyntax, prewarmBackgroundLanguages, loadLanguageRunner } from './languages/language-registry';
+import { getLanguageExtension, prewarmBackgroundLanguages, loadLanguageRunner } from './languages/language-registry';
 
 // Freeze fetch to prevent monkey-patching by injected scripts (API key exfiltration defense)
 Object.defineProperty(window, 'fetch', { value: window.fetch, writable: false, configurable: false });
@@ -117,12 +117,11 @@ function render() {
 
         //language selector
         renderLanguageSelector(elements.languageSelectorContainer, currentEx);
-
-        const syntaxExtension = getLanguageSyntax(currentLanguageId);
+        const languageExtension = getLanguageExtension(currentLanguageId);
 
         //initialize editor with user code (loadExerciseCode automatically saves prior context)
         const editorText = store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode;
-        loadExerciseCode(currentExerciseId, currentLanguageId, editorText, syntaxExtension, () => {
+        loadExerciseCode(currentExerciseId, currentLanguageId, editorText, languageExtension, () => {
             showPopup('Saved!');
         });
 

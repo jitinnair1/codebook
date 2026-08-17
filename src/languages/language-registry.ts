@@ -14,14 +14,20 @@ const adapterModules = import.meta.glob<{ runner?: CodeRunner; default?: CodeRun
   './*/adapter.ts'
 );
 
-const syntaxModules = import.meta.glob<{ syntaxExtension?: Extension; default?: Extension }>(
+const syntaxModules = import.meta.glob<{ syntaxExtension?: Extension; lintExtension?: Extension; default?: Extension }>(
   './*/syntax.ts',
   { eager: true }
 );
 
-// Maps for metadata and syntax
+const linterModules = import.meta.glob<{ lintExtension?: Extension; default?: Extension }>(
+  './*/linter.ts',
+  { eager: true }
+);
+
+// Maps for metadata, syntax, and linters
 const metadataMap = new Map<string, LanguageMetadata>();
 const syntaxMap = new Map<string, Extension>();
+const linterMap = new Map<string, Extension>();
 
 for (const path in metadataModules) {
   const match = path.match(/\.\/([^/]+)\/metadata\.ts$/);
@@ -40,6 +46,15 @@ for (const path in metadataModules) {
   const syntax = syntaxMod ? (syntaxMod.syntaxExtension || syntaxMod.default) : undefined;
   if (syntax) {
     syntaxMap.set(langId, syntax);
+  }
+
+  const linterPath = `./${langId}/linter.ts`;
+  const linterMod = linterModules[linterPath];
+  const linter = linterMod ? (linterMod.lintExtension || linterMod.default) : undefined;
+  if (linter) {
+    linterMap.set(langId, linter);
+  } else if (syntaxMod?.lintExtension) {
+    linterMap.set(langId, syntaxMod.lintExtension);
   }
 }
 
@@ -121,6 +136,19 @@ export async function loadLanguageRunner(id: string): Promise<CodeRunner> {
 
 export function getLanguageSyntax(id: string): Extension | undefined {
   return syntaxMap.get(id);
+}
+
+export function getLanguageLinter(id: string): Extension | undefined {
+  return linterMap.get(id);
+}
+
+export function getLanguageExtension(id: string): Extension {
+  const syntax = syntaxMap.get(id);
+  const linter = linterMap.get(id);
+  const extensions: Extension[] = [];
+  if (syntax) extensions.push(syntax);
+  if (linter) extensions.push(linter);
+  return extensions;
 }
 
 export function getAllDiscoveredLanguages(): LanguageMetadata[] {

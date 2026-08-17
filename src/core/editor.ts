@@ -3,6 +3,7 @@ import { basicSetup } from 'codemirror';
 import { EditorState, Compartment, Extension } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { autocompletion, acceptCompletion } from '@codemirror/autocomplete';
+import { lintGutter } from '@codemirror/lint';
 import { vim } from '@replit/codemirror-vim';
 import { themeCompartment, getTheme } from '../ui/theme';
 import { showPopup } from '../ui/popup';
@@ -23,10 +24,10 @@ let activeLanguageId: string | null = null;
 export const languageCompartment = new Compartment();
 export const vimCompartment = new Compartment();
 
-export function updateEditorLanguage(syntaxExtension?: Extension) {
+export function updateEditorLanguage(languageExtension?: Extension) {
     if (view) {
         view.dispatch({
-            effects: languageCompartment.reconfigure(syntaxExtension || [])
+            effects: languageCompartment.reconfigure(languageExtension || [])
         });
     }
 }
@@ -47,7 +48,7 @@ export function updateEditorTheme(isDark: boolean) {
     }
 }
 
-// Safely updates editor content without triggering auto-save
+//safely updates editor content without triggering auto-save
 function setDocText(code: string) {
     if (!view) return;
     if (autoSaveTimeout) {
@@ -106,7 +107,7 @@ export function loadExerciseCode(
     exerciseId: string,
     languageId: string,
     code: string,
-    syntaxExtension?: Extension,
+    languageExtension?: Extension,
     onSave?: () => void
 ) {
     onSaveCallback = onSave;
@@ -138,6 +139,7 @@ export function loadExerciseCode(
                 vimCompartment.of(isVim ? vim() : []),
                 basicSetup,
                 autocompletion(),
+                lintGutter(),
                 EditorView.updateListener.of((update) => {
                     if (update.docChanged && !isProgrammaticChange) {
                         scheduleAutoSave();
@@ -180,7 +182,7 @@ export function loadExerciseCode(
                         preventDefault: true
                     }
                 ]),
-                languageCompartment.of(syntaxExtension || []),
+                languageCompartment.of(languageExtension || []),
                 themeCompartment.of(getTheme(isDark)),
                 EditorView.lineWrapping,
                 EditorView.theme({
@@ -206,7 +208,7 @@ export function loadExerciseCode(
             parent: editorEl
         });
     } else {
-        updateEditorLanguage(syntaxExtension);
+        updateEditorLanguage(languageExtension);
         updateEditorVimMode(store.getState().vimMode);
         setDocText(code);
     }
@@ -215,7 +217,7 @@ export function loadExerciseCode(
 // Backward-compatible alias for initEditor
 export function initEditor(
     initialCode: string,
-    syntaxExtension?: Extension,
+    languageExtension?: Extension,
     onSave?: () => void,
     _forceCodeUpdate = true,
     exerciseId?: string,
@@ -224,6 +226,6 @@ export function initEditor(
     const { currentExerciseId, currentLanguageId } = store.getState();
     const exId = exerciseId || currentExerciseId;
     const langId = languageId || currentLanguageId;
-    loadExerciseCode(exId, langId, initialCode, syntaxExtension, onSave);
+    loadExerciseCode(exId, langId, initialCode, languageExtension, onSave);
 }
 

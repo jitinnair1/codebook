@@ -84,7 +84,7 @@ function render() {
     const isCompletedChanged = completedIds.length !== lastRenderedCompletedIds.length ||
         completedIds.some((id, idx) => id !== lastRenderedCompletedIds[idx]);
 
-    // If nothing relevant to the main view changed (e.g. chat messages or settings), avoid re-rendering or touching editor
+    //JN: (wip, need cleaner logic) render only on key chnages and not when chat responses stream in
     if (!isInitial && !isExerciseChanged && !isLanguageChanged && !isCompletedChanged) {
         return;
     }

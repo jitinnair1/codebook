@@ -11,7 +11,7 @@ async function setupPyodide() {
     pyodideInstance = await loadPyodide({
       //JN: We specify the url here since by default it looks to fetch assets from
       //bundled module path which fails on deployment
-      indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.3/full/'
+      indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.5/full/'
     });
 
     pyodideInstance.setStdout({

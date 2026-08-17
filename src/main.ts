@@ -1,6 +1,6 @@
 //src/main.ts
 import './input.css';
-import { store } from './core/store';
+import { store, decryptStoredChatSettings } from './core/store';
 import { exercises, curriculum } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
 import { loadExerciseCode, setEditorCode, updateEditorTheme } from './core/editor';
@@ -28,7 +28,7 @@ import { initChatPanel } from './ui/chatPanel';
 import { renderLanguageSelector } from './ui/languageSelector';
 import { getLanguageExtension, prewarmBackgroundLanguages, loadLanguageRunner } from './languages/language-registry';
 
-// Freeze fetch to prevent monkey-patching by injected scripts (API key exfiltration defense)
+//freeze fetch to prevent monkey-patching by injected scripts 
 Object.defineProperty(window, 'fetch', { value: window.fetch, writable: false, configurable: false });
 
 //initialisation
@@ -84,7 +84,7 @@ function render() {
     const isCompletedChanged = completedIds.length !== lastRenderedCompletedIds.length ||
         completedIds.some((id, idx) => id !== lastRenderedCompletedIds[idx]);
 
-    //JN: (wip, need cleaner logic) render only on key chnages and not when chat responses stream in
+    //render only on key changes and not when say chat responses are streaming in
     if (!isInitial && !isExerciseChanged && !isLanguageChanged && !isCompletedChanged) {
         return;
     }
@@ -140,14 +140,6 @@ function render() {
 //event listeners
 store.subscribe(render);
 
-if ((store as any).persist?.onFinishHydration) {
-    (store as any).persist.onFinishHydration(() => {
-        lastRenderedExerciseId = null;
-        lastRenderedLanguageId = null;
-        render();
-    });
-}
-
 //run button
 elements.runBtn.addEventListener('click', () => runner.run());
 
@@ -199,13 +191,28 @@ setupResize(elements.resize.dragVConsole, elements.resize.paneConsole, 'vertical
 
 
 //startup
-runner.init(); // Subscribes to runtime status updates
+runner.init();
 
-const initialId = window.location.hash.slice(1) || exercises[0].id;
-store.getState().setCurrent(initialId);
+//setup initial state
+const hashId = window.location.hash.slice(1);
+const storedExerciseId = store.getState().currentExerciseId;
+
+if (hashId && exercises.some(e => e.id === hashId)) {
+    store.getState().setCurrent(hashId);
+} else if (storedExerciseId && exercises.some(e => e.id === storedExerciseId)) {
+    window.location.hash = `#${storedExerciseId}`;
+} else if (exercises.length > 0) {
+    store.getState().setCurrent(exercises[0].id);
+    window.location.hash = `#${exercises[0].id}`;
+}
 
 //initial render
 render();
+
+//kick off background key decryption (non-blocking)
+decryptStoredChatSettings(store).catch((err) => {
+    console.warn('[main] Background key decryption failed:', err);
+});
 
 //immediately boot the active language runner
 const activeLangId = store.getState().currentLanguageId;

@@ -2,6 +2,7 @@
 import { elements } from '../core/elements';
 import { store, ChatSettings, ChatEndpoint } from '../core/store';
 import { updateEditorVimMode } from '../core/editor';
+import { decryptSecret } from '../core/crypto';
 import { ICONS } from './icons';
 import { abortAllStreams } from './chatPanel';
 import { showConfirmDialog } from './resetProgress';
@@ -689,6 +690,7 @@ async function triggerModelFetch() {
 async function fetchAvailableModels(baseUrl: string, apiKey: string): Promise<{ success: boolean; models: string[]; error?: string }> {
     if (!baseUrl) return { success: false, models: [], error: 'Base URL is required' };
 
+    const resolvedApiKey = (await decryptSecret(apiKey || '')).trim();
     const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
     let endpoint: string;
     if (cleanBaseUrl.endsWith('/chat/completions')) {
@@ -703,8 +705,8 @@ async function fetchAvailableModels(baseUrl: string, apiKey: string): Promise<{ 
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
         };
-        if (apiKey) {
-            headers['Authorization'] = `Bearer ${apiKey}`;
+        if (resolvedApiKey) {
+            headers['Authorization'] = `Bearer ${resolvedApiKey}`;
         }
         if (cleanBaseUrl.includes('anthropic.com')) {
             headers['anthropic-dangerous-direct-browser-access'] = 'true';
@@ -783,6 +785,7 @@ function closeModal() {
 
 function formatMaskedKey(key: string): string {
     if (!key) return '';
+    if (key.startsWith('enc:v1:')) return '••••••••';
     const visibleLength = Math.min(10, Math.max(4, Math.floor(key.length / 3)));
     const prefix = key.slice(0, visibleLength);
     return `${prefix}••••••••`;
@@ -813,7 +816,7 @@ function showBackupStatus(message: string, isError: boolean = false) {
     }, 5000);
 }
 
-function handleExportBackup() {
+async function handleExportBackup() {
     try {
         const state = store.getState();
         const includeKeys = !!elements.settings.includeKeysCheckbox?.checked;
@@ -830,6 +833,14 @@ function handleExportBackup() {
                 ...ep,
                 apiKey: '',
             }));
+        } else {
+            exportChatSettings.apiKey = await decryptSecret(exportChatSettings.apiKey || '');
+            exportChatSettings.endpoints = await Promise.all(
+                exportChatSettings.endpoints.map(async (ep) => ({
+                    ...ep,
+                    apiKey: await decryptSecret(ep.apiKey || ''),
+                }))
+            );
         }
 
         const siteTitle = siteConfig.title || 'codebook';

@@ -1,6 +1,7 @@
 // src/core/ai/client.ts
 import { store, ChatMessage } from '../store';
 import { buildSystemPrompt } from './context';
+import { decryptSecret } from '../crypto';
 
 export type StreamStatus = 'connecting' | 'thinking';
 
@@ -55,8 +56,11 @@ export async function streamCompletion(options: StreamOptions): Promise<string> 
     'Content-Type': 'application/json',
   };
 
-  if (settings.apiKey) {
-    headers['Authorization'] = `Bearer ${settings.apiKey.trim()}`;
+  const rawKey = settings.apiKey || '';
+  const resolvedKey = (await decryptSecret(rawKey)).trim();
+
+  if (resolvedKey) {
+    headers['Authorization'] = `Bearer ${resolvedKey}`;
   }
 
   if (settings.baseUrl.includes('anthropic.com')) {

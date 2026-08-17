@@ -61,14 +61,6 @@ export function initChatPanel() {
   renderQuickChips();
   renderChatMessages();
 
-  // Handle post-hydration sync if store finishes hydrating asynchronously
-  if ((store as any).persist?.onFinishHydration) {
-    (store as any).persist.onFinishHydration(() => {
-      syncPanelVisibility();
-      renderChatMessages();
-    });
-  }
-
   // Subscribe to store updates for exercise switch and chat settings/history changes
   store.subscribe(() => {
     const state = store.getState();

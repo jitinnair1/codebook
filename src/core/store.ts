@@ -67,19 +67,11 @@ const defaultChatSettings: ChatSettings = {
   ],
 };
 
-let isHydrating = true;
-let hasHydrated = false;
-
-const encryptedStateStorage: StateStorage = {
-  getItem: async (name: string): Promise<string | null> => {
-    isHydrating = true;
-    const raw = localStorage.getItem(name);
-    if (!raw) {
-      isHydrating = false;
-      hasHydrated = true;
-      return null;
-    }
+const syncStateStorage: StateStorage = {
+  getItem: (name: string): string | null => {
     try {
+      const raw = localStorage.getItem(name);
+      if (!raw) return null;
       const parsed = JSON.parse(raw);
 
       // Migrate legacy aiSettings to chatSettings if present
@@ -90,20 +82,7 @@ const encryptedStateStorage: StateStorage = {
 
       if (parsed?.state?.chatSettings) {
         const cs = parsed.state.chatSettings;
-        if (cs.apiKey) {
-          cs.apiKey = await decryptSecret(cs.apiKey);
-        }
-        if (Array.isArray(cs.endpoints)) {
-          for (const ep of cs.endpoints) {
-            if (ep.apiKey) {
-              ep.apiKey = await decryptSecret(ep.apiKey);
-            }
-            if (!ep.name) {
-              ep.name = ep.baseUrl?.includes('openai.com') ? 'OpenAI API' : (ep.baseUrl ? 'Custom Endpoint' : 'Endpoint 1');
-            }
-          }
-        } else {
-          // Initialize endpoints if absent
+        if (!Array.isArray(cs.endpoints) || cs.endpoints.length === 0) {
           cs.endpoints = [
             {
               id: cs.selectedEndpointId || 'default-endpoint',
@@ -116,37 +95,37 @@ const encryptedStateStorage: StateStorage = {
           cs.selectedEndpointId = cs.endpoints[0].id;
         }
       }
-      isHydrating = false;
-      hasHydrated = true;
+
       return JSON.stringify(parsed);
     } catch {
-      isHydrating = false;
-      hasHydrated = true;
-      return raw;
+      return localStorage.getItem(name);
     }
   },
-  setItem: async (name: string, value: string): Promise<void> => {
-    if (isHydrating || !hasHydrated) {
-      // Guard against race conditions wiping local storage before initial hydration completes
-      return;
-    }
+  setItem: (name: string, value: string): void => {
     try {
       const parsed = JSON.parse(value);
       if (parsed?.state?.chatSettings) {
-        const cs = { ...parsed.state.chatSettings };
-        if (cs.apiKey) {
-          cs.apiKey = await encryptSecret(cs.apiKey);
-        }
-        if (Array.isArray(cs.endpoints)) {
-          cs.endpoints = await Promise.all(
-            cs.endpoints.map(async (ep: ChatEndpoint) => ({
-              ...ep,
-              apiKey: ep.apiKey ? await encryptSecret(ep.apiKey) : '',
-            }))
-          );
-        }
-        parsed.state.chatSettings = cs;
-        localStorage.setItem(name, JSON.stringify(parsed));
+        // Asynchronously encrypt chat settings in background before writing to localStorage
+        (async () => {
+          try {
+            const cs = { ...parsed.state.chatSettings };
+            if (cs.apiKey) {
+              cs.apiKey = await encryptSecret(cs.apiKey);
+            }
+            if (Array.isArray(cs.endpoints)) {
+              cs.endpoints = await Promise.all(
+                cs.endpoints.map(async (ep: ChatEndpoint) => ({
+                  ...ep,
+                  apiKey: ep.apiKey ? await encryptSecret(ep.apiKey) : '',
+                }))
+              );
+            }
+            parsed.state.chatSettings = cs;
+            localStorage.setItem(name, JSON.stringify(parsed));
+          } catch {
+            localStorage.setItem(name, value);
+          }
+        })();
         return;
       }
       localStorage.setItem(name, value);
@@ -158,6 +137,41 @@ const encryptedStateStorage: StateStorage = {
     localStorage.removeItem(name);
   },
 };
+
+export async function decryptStoredChatSettings(storeApi: typeof store): Promise<void> {
+  const current = storeApi.getState().chatSettings;
+  if (!current) return;
+
+  let needsUpdate = false;
+  let decryptedApiKey = current.apiKey;
+  if (current.apiKey && current.apiKey.startsWith('enc:v1:')) {
+    decryptedApiKey = await decryptSecret(current.apiKey);
+    needsUpdate = true;
+  }
+
+  let decryptedEndpoints = current.endpoints;
+  if (Array.isArray(current.endpoints)) {
+    const updated = await Promise.all(
+      current.endpoints.map(async (ep) => {
+        if (ep.apiKey && ep.apiKey.startsWith('enc:v1:')) {
+          needsUpdate = true;
+          return { ...ep, apiKey: await decryptSecret(ep.apiKey) };
+        }
+        return ep;
+      })
+    );
+    if (needsUpdate) {
+      decryptedEndpoints = updated;
+    }
+  }
+
+  if (needsUpdate) {
+    storeApi.getState().setChatSettings({
+      apiKey: decryptedApiKey,
+      endpoints: decryptedEndpoints,
+    });
+  }
+}
 
 export const store = createStore<AppState>()(
   persist(
@@ -305,7 +319,7 @@ export const store = createStore<AppState>()(
     }),
     {
       name: 'storage',
-      storage: createJSONStorage(() => encryptedStateStorage),
+      storage: createJSONStorage(() => syncStateStorage),
     }
   )
 );

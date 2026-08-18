@@ -5,55 +5,43 @@ import { ChatEndpoint } from '../../types';
 
 export const syncStateStorage: StateStorage = {
   getItem: (name: string): string | null => {
-    try {
-      const raw = localStorage.getItem(name);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-
-      if (parsed?.state?.chatSettings) {
-        const cs = parsed.state.chatSettings;
-        if (!Array.isArray(cs.endpoints) || cs.endpoints.length === 0) {
-          cs.endpoints = [
-            {
-              id: cs.selectedEndpointId || 'default-endpoint',
-              name: cs.baseUrl?.includes('openai.com')
-                ? 'OpenAI API'
-                : (cs.baseUrl ? 'Custom Endpoint' : 'Endpoint 1'),
-              baseUrl: cs.baseUrl || '',
-              apiKey: cs.apiKey || '',
-              model: cs.model || '',
-            },
-          ];
-          cs.selectedEndpointId = cs.endpoints[0].id;
-        }
-      }
-
-      return JSON.stringify(parsed);
-    } catch {
-      return localStorage.getItem(name);
-    }
+    return localStorage.getItem(name);
   },
 
   setItem: (name: string, value: string): void => {
     try {
       const parsed = JSON.parse(value);
-      if (parsed?.state?.chatSettings) {
-        // Asynchronously encrypt chat settings in background before writing to localStorage
+      const hasChatSettings = !!parsed?.state?.chatSettings;
+      const hasSyncSettings = !!parsed?.state?.gistSyncSettings;
+
+      if (hasChatSettings || hasSyncSettings) {
+        // Asynchronously encrypt chat settings and sync token in background before writing to localStorage
         (async () => {
           try {
-            const cs = { ...parsed.state.chatSettings };
-            if (cs.apiKey) {
-              cs.apiKey = await encryptSecret(cs.apiKey);
+            if (hasChatSettings) {
+              const cs = { ...parsed.state.chatSettings };
+              if (cs.apiKey) {
+                cs.apiKey = await encryptSecret(cs.apiKey);
+              }
+              if (Array.isArray(cs.endpoints)) {
+                cs.endpoints = await Promise.all(
+                  cs.endpoints.map(async (ep: ChatEndpoint) => ({
+                    ...ep,
+                    apiKey: ep.apiKey ? await encryptSecret(ep.apiKey) : '',
+                  }))
+                );
+              }
+              parsed.state.chatSettings = cs;
             }
-            if (Array.isArray(cs.endpoints)) {
-              cs.endpoints = await Promise.all(
-                cs.endpoints.map(async (ep: ChatEndpoint) => ({
-                  ...ep,
-                  apiKey: ep.apiKey ? await encryptSecret(ep.apiKey) : '',
-                }))
-              );
+
+            if (hasSyncSettings) {
+              const ss = { ...parsed.state.gistSyncSettings };
+              if (ss.token) {
+                ss.token = await encryptSecret(ss.token);
+              }
+              parsed.state.gistSyncSettings = ss;
             }
-            parsed.state.chatSettings = cs;
+
             localStorage.setItem(name, JSON.stringify(parsed));
           } catch {
             localStorage.setItem(name, value);

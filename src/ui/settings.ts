@@ -1,11 +1,13 @@
 //TODO: Are there portions here that can be pushed off to index.html?
 import { elements } from '../core/elements';
-import { store, ChatSettings, ChatEndpoint } from '../core/store';
+import { store, ChatSettings, ChatEndpoint, GistSyncSettings } from '../core/store';
 import { updateEditorVimMode } from '../core/editor';
 import { decryptSecret } from '../core/crypto';
 import { ICONS } from './icons';
 import { abortAllStreams } from './chatPanel';
 import { showConfirmDialog } from './resetProgress';
+import { createAndLinkGist, pullFromGist, pushToGist, subscribeSyncStatus, getSyncStatus, SyncStateEvent } from '../core/sync/syncManager';
+import { validateToken, extractGistId } from '../core/sync/gistClient';
 import siteConfig from '../../site.toml';
 
 let cachedModels: string[] = [];
@@ -29,6 +31,23 @@ export function initSettings() {
     if (elements.settings.clearStorageIcon) {
         elements.settings.clearStorageIcon.innerHTML = ICONS.TRASH;
     }
+    if (elements.settings.gistCreateIcon) {
+        elements.settings.gistCreateIcon.innerHTML = ICONS.PLUS;
+    }
+    if (elements.settings.gistLinkIcon) {
+        elements.settings.gistLinkIcon.innerHTML = ICONS.UPLOAD;
+    }
+    if (elements.settings.gistSyncNowIcon) {
+        elements.settings.gistSyncNowIcon.innerHTML = ICONS.SYNC;
+    }
+    if (elements.settings.gistPullIcon) {
+        elements.settings.gistPullIcon.innerHTML = ICONS.DOWNLOAD;
+    }
+
+    // Subscribe to reactive sync status updates
+    subscribeSyncStatus((event) => {
+        updateSyncStatusUI(event);
+    });
 
     // Bind static event listeners once
     bindStaticListeners();
@@ -122,6 +141,39 @@ function bindStaticListeners() {
     elements.settings.clearStorageBtn?.addEventListener('click', () => {
         handleClearLocalStorage();
     });
+
+    // Gist Sync listeners
+    elements.settings.gistIdInput?.addEventListener('input', () => {
+        const cs = store.getState().gistSyncSettings;
+        if (!cs?.gistId) {
+            updateGistActionButtons();
+        }
+    });
+
+    elements.settings.gistCreateBtn?.addEventListener('click', () => {
+        handleCreateGist();
+    });
+
+    elements.settings.gistLinkBtn?.addEventListener('click', () => {
+        handleLinkGist();
+    });
+
+    elements.settings.gistSyncNowBtn?.addEventListener('click', () => {
+        handleSyncNow();
+    });
+
+    elements.settings.gistPullBtn?.addEventListener('click', () => {
+        handlePullGist();
+    });
+
+    elements.settings.gistUnlinkBtn?.addEventListener('click', () => {
+        handleUnlinkGist();
+    });
+
+    elements.settings.gistAutosyncToggle?.addEventListener('change', (e) => {
+        const checked = (e.target as HTMLInputElement).checked;
+        store.getState().setGistSyncSettings({ autoSync: checked });
+    });
 }
 
 function syncSettingsUI() {
@@ -158,6 +210,16 @@ function syncSettingsUI() {
     renderEndpointSelector(chatSettings);
     renderKeyContainer(chatSettings);
     renderModelSelector(chatSettings);
+
+    const gistSyncSettings = store.getState().gistSyncSettings || {
+        enabled: false,
+        token: '',
+        gistId: '',
+        autoSync: true,
+    };
+    renderGistTokenContainer(gistSyncSettings);
+    renderGistSection(gistSyncSettings);
+
     updateStorageUsageDisplay();
 }
 
@@ -843,6 +905,23 @@ async function handleExportBackup() {
             );
         }
 
+        // Copy and sanitize Gist sync settings based on checkbox
+        const currentSync = state.gistSyncSettings || {
+            enabled: false,
+            token: '',
+            gistId: '',
+            autoSync: true,
+        };
+
+        let exportGistSyncSettings: GistSyncSettings = {
+            ...currentSync,
+            token: '',
+        };
+
+        if (includeKeys && currentSync.token) {
+            exportGistSyncSettings.token = await decryptSecret(currentSync.token);
+        }
+
         const siteTitle = siteConfig.title || 'codebook';
         const siteSlug = siteTitle.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'codebook';
 
@@ -859,6 +938,7 @@ async function handleExportBackup() {
                 chatSettings: exportChatSettings,
                 chatConversations: state.chatConversations,
                 activeConversationId: state.activeConversationId,
+                gistSyncSettings: exportGistSyncSettings,
             },
         };
 
@@ -902,28 +982,14 @@ async function handleImportBackup(e: Event) {
 
         const currentSiteTitle = siteConfig.title || 'codebook';
 
-        // Check if file has metadata wrapper or raw state dump
-        let backupData: any = null;
-        let fileSiteTitle: string | null = null;
-
-        if (parsed && typeof parsed === 'object') {
-            if (parsed.data && typeof parsed.data === 'object') {
-                backupData = parsed.data;
-                fileSiteTitle = parsed.siteTitle || null;
-            } else if (parsed.state && typeof parsed.state === 'object') {
-                backupData = parsed.state;
-                fileSiteTitle = parsed.siteTitle || null;
-            } else {
-                backupData = parsed;
-                fileSiteTitle = parsed.siteTitle || null;
-            }
-        }
-
-        if (!backupData || typeof backupData !== 'object') {
+        if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') {
             showBackupStatus('Import failed: Backup file does not contain valid application state.', true);
             input.value = '';
             return;
         }
+
+        const backupData = parsed.data;
+        const fileSiteTitle = parsed.siteTitle || null;
 
         // Strict siteTitle validation
         if (fileSiteTitle && fileSiteTitle !== currentSiteTitle) {
@@ -1000,6 +1066,334 @@ function handleClearLocalStorage() {
             abortAllStreams();
             localStorage.clear();
             window.location.reload();
+        },
+    });
+}
+
+// ==========================================
+// Gist Sync UI Renderers and Handlers
+// ==========================================
+
+function updateSyncStatusUI(event: SyncStateEvent) {
+    const badge = elements.settings.gistSyncBadge;
+    const dot = elements.settings.gistSyncDot;
+    const badgeText = elements.settings.gistSyncBadgeText;
+    const syncNowBtn = elements.settings.gistSyncNowBtn;
+    const syncNowIcon = elements.settings.gistSyncNowIcon;
+    const syncNowText = elements.settings.gistSyncNowText;
+
+    if (!badge || !dot || !badgeText) return;
+
+    const gistSettings = store.getState().gistSyncSettings;
+    const isLinked = !!gistSettings?.gistId;
+
+    if (!isLinked) {
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-fg-muted';
+        badgeText.textContent = 'Not linked';
+        badgeText.className = 'text-fg-muted';
+        return;
+    }
+
+    badge.classList.remove('hidden');
+    badge.classList.add('flex');
+
+    if (event.status === 'syncing') {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse';
+        badgeText.textContent = 'Syncing...';
+        badgeText.className = 'text-yellow-400 font-medium';
+        if (syncNowBtn) syncNowBtn.disabled = true;
+        if (syncNowIcon) syncNowIcon.innerHTML = ICONS.SPINNER;
+        if (syncNowText) syncNowText.textContent = 'Syncing...';
+    } else if (event.status === 'error') {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-red-500';
+        badgeText.textContent = 'Sync Error';
+        badgeText.className = 'text-red-400 font-medium';
+        if (syncNowBtn) syncNowBtn.disabled = false;
+        if (syncNowIcon) syncNowIcon.innerHTML = ICONS.SYNC;
+        if (syncNowText) syncNowText.textContent = 'Sync Now';
+    } else if (event.status === 'offline') {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-fg-muted';
+        badgeText.textContent = 'Offline';
+        badgeText.className = 'text-fg-muted';
+        if (syncNowBtn) syncNowBtn.disabled = true;
+        if (syncNowIcon) syncNowIcon.innerHTML = ICONS.SYNC;
+        if (syncNowText) syncNowText.textContent = 'Sync Now';
+    } else {
+        // Synced / Idle with linked gist
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-green-500';
+        if (event.lastSyncedAt) {
+            const timeAgo = formatTimeAgo(event.lastSyncedAt);
+            badgeText.textContent = `Synced ${timeAgo}`;
+        } else {
+            badgeText.textContent = 'Linked';
+        }
+        badgeText.className = 'text-green-500 font-medium';
+        if (syncNowBtn) syncNowBtn.disabled = false;
+        if (syncNowIcon) syncNowIcon.innerHTML = ICONS.SYNC;
+        if (syncNowText) syncNowText.textContent = 'Sync Now';
+    }
+}
+
+function formatTimeAgo(timestamp: number): string {
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+    if (elapsedSeconds < 10) return 'just now';
+    if (elapsedSeconds < 60) return `${elapsedSeconds}s ago`;
+    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+    if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`;
+    const elapsedHours = Math.floor(elapsedMinutes / 60);
+    if (elapsedHours < 24) return `${elapsedHours}h ago`;
+    const elapsedDays = Math.floor(elapsedHours / 24);
+    return `${elapsedDays}d ago`;
+}
+
+function renderGistTokenContainer(settings: GistSyncSettings) {
+    const container = elements.settings.gistTokenContainer;
+    if (!container) return;
+
+    const generateTokenLink = elements.settings.gistGenerateTokenLink;
+    if (generateTokenLink) {
+        generateTokenLink.classList.toggle('hidden', !!settings.token);
+    }
+
+    if (settings.token) {
+        container.innerHTML = `
+            <div class="flex items-center justify-between px-3 py-2 bg-bg-app border border-border-default rounded-md">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
+                    <span class="text-xs font-mono text-fg-primary truncate select-none">${formatMaskedKey(settings.token)}</span>
+                    <span class="text-[11px] text-fg-muted font-sans shrink-0">(Saved)</span>
+                </div>
+                <button type="button" id="clear-gist-token-btn" class="text-[11px] text-red-400 hover:text-red-500 font-medium px-2 py-0.5 rounded 
+                hover:bg-bg-surface transition-colors cursor-pointer shrink-0" title="Delete Token">
+                    Delete
+                </button>
+            </div>
+        `;
+
+        const clearBtn = document.getElementById('clear-gist-token-btn');
+        clearBtn?.addEventListener('click', () => {
+            store.getState().setGistSyncSettings({ token: '' });
+            syncSettingsUI();
+        });
+    } else {
+        container.innerHTML = `
+            <div class="relative flex items-center">
+                <input type="text" id="gist-token-input"
+                    name="github-token"
+                    autocomplete="one-time-code"
+                    autocapitalize="off"
+                    autocorrect="off"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    data-bwignore="true"
+                    data-form-type="other"
+                    spellcheck="false"
+                    style="-webkit-text-security: disc; text-security: disc;"
+                    class="w-full px-3 py-2 text-xs bg-bg-app border border-border-default rounded-md text-fg-primary 
+                    placeholder:text-fg-muted focus:outline-none focus:border-brand font-mono"
+                    placeholder="Paste GitHub PAT (ghp_... or github_pat_...)"
+                    value="" />
+            </div>
+        `;
+
+        const tokenInput = document.getElementById('gist-token-input') as HTMLInputElement | null;
+        if (tokenInput) {
+            const saveToken = () => {
+                const val = tokenInput.value.trim();
+                if (val) {
+                    store.getState().setGistSyncSettings({ token: val });
+                    syncSettingsUI();
+                }
+            };
+            tokenInput.addEventListener('blur', saveToken);
+            tokenInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveToken();
+                }
+            });
+        }
+    }
+}
+
+function renderGistSection(settings: GistSyncSettings) {
+    const isLinked = !!settings.gistId;
+    const gistIdInput = elements.settings.gistIdInput;
+    const openLink = elements.settings.gistOpenLink;
+    const createBtn = elements.settings.gistCreateBtn;
+    const linkBtn = elements.settings.gistLinkBtn;
+    const syncNowBtn = elements.settings.gistSyncNowBtn;
+    const pullBtn = elements.settings.gistPullBtn;
+    const unlinkBtn = elements.settings.gistUnlinkBtn;
+    const autosyncWrapper = elements.settings.gistAutosyncWrapper;
+    const autosyncToggle = elements.settings.gistAutosyncToggle;
+
+    if (gistIdInput && document.activeElement !== gistIdInput) {
+        gistIdInput.value = settings.gistId || '';
+    }
+
+    if (isLinked) {
+        if (gistIdInput) {
+            gistIdInput.readOnly = true;
+            gistIdInput.classList.add('opacity-75', 'bg-bg-surface');
+        }
+        if (openLink) {
+            openLink.href = `https://gist.github.com/${extractGistId(settings.gistId)}`;
+            openLink.classList.remove('hidden');
+            openLink.classList.add('inline-flex');
+        }
+        createBtn?.classList.add('hidden');
+        linkBtn?.classList.add('hidden');
+        syncNowBtn?.classList.remove('hidden');
+        pullBtn?.classList.remove('hidden');
+        unlinkBtn?.classList.remove('hidden');
+        autosyncWrapper?.classList.remove('hidden');
+        autosyncWrapper?.classList.add('flex');
+        if (autosyncToggle) {
+            autosyncToggle.checked = settings.autoSync !== false;
+        }
+    } else {
+        if (gistIdInput) {
+            gistIdInput.readOnly = false;
+            gistIdInput.classList.remove('opacity-75', 'bg-bg-surface');
+        }
+        if (openLink) {
+            openLink.classList.add('hidden');
+            openLink.classList.remove('inline-flex');
+        }
+        syncNowBtn?.classList.add('hidden');
+        pullBtn?.classList.add('hidden');
+        unlinkBtn?.classList.add('hidden');
+        autosyncWrapper?.classList.add('hidden');
+        autosyncWrapper?.classList.remove('flex');
+        updateGistActionButtons();
+    }
+
+    updateSyncStatusUI(getSyncStatus());
+}
+
+function updateGistActionButtons() {
+    const rawVal = elements.settings.gistIdInput?.value?.trim() || '';
+    const hasTypedId = !!rawVal;
+    const isLinked = !!store.getState().gistSyncSettings?.gistId;
+
+    if (isLinked) return;
+
+    if (hasTypedId) {
+        elements.settings.gistCreateBtn?.classList.add('hidden');
+        elements.settings.gistLinkBtn?.classList.remove('hidden');
+    } else {
+        elements.settings.gistCreateBtn?.classList.remove('hidden');
+        elements.settings.gistLinkBtn?.classList.add('hidden');
+    }
+}
+
+function showGistStatus(message: string, isError = false) {
+    const el = elements.settings.gistStatusMsg;
+    if (!el) return;
+    el.textContent = message;
+    el.className = `text-xs rounded-md p-2 transition-all ${
+        isError
+            ? 'bg-red-500/10 border border-red-500/20 text-red-400 block'
+            : 'bg-green-500/10 border border-green-500/20 text-green-400 block'
+    }`;
+    setTimeout(() => {
+        if (el.textContent === message) {
+            el.className = 'hidden text-xs rounded-md p-2';
+            el.textContent = '';
+        }
+    }, 6000);
+}
+
+async function handleCreateGist() {
+    const token = (store.getState().gistSyncSettings?.token || '').trim();
+    if (!token) {
+        showGistStatus('Please enter your GitHub Personal Access Token first.', true);
+        const tokenInput = document.getElementById('gist-token-input') as HTMLInputElement | null;
+        tokenInput?.focus();
+        return;
+    }
+
+    showGistStatus('Validating token and creating Gist on GitHub...');
+    const validation = await validateToken(token);
+    if (!validation.valid) {
+        showGistStatus(`GitHub Token Error: ${validation.error || 'Invalid token'}`, true);
+        return;
+    }
+
+    const res = await createAndLinkGist(token);
+    if (res.success && res.gistId) {
+        showGistStatus(`Gist created successfully (ID: ${res.gistId}). Auto-sync enabled.`);
+        syncSettingsUI();
+    } else {
+        showGistStatus(`Failed to create Gist: ${res.error || 'Unknown error'}`, true);
+    }
+}
+
+async function handleLinkGist() {
+    const token = (store.getState().gistSyncSettings?.token || '').trim();
+    const rawGistId = elements.settings.gistIdInput?.value?.trim() || '';
+    const cleanGistId = extractGistId(rawGistId);
+
+    if (!cleanGistId) {
+        showGistStatus('Please enter a valid Gist ID or Gist URL.', true);
+        elements.settings.gistIdInput?.focus();
+        return;
+    }
+
+    if (!token) {
+        showGistStatus('Please enter your GitHub Personal Access Token to link this Gist.', true);
+        const tokenInput = document.getElementById('gist-token-input') as HTMLInputElement | null;
+        tokenInput?.focus();
+        return;
+    }
+
+    showGistStatus('Connecting to Gist and importing progress...');
+    store.getState().setGistSyncSettings({ gistId: cleanGistId, token, enabled: true });
+
+    const res = await pullFromGist({ smartMerge: true });
+    if (res.success) {
+        showGistStatus('Successfully connected to Gist and merged progress!');
+        syncSettingsUI();
+    } else {
+        store.getState().setGistSyncSettings({ gistId: '' });
+        showGistStatus(`Failed to connect Gist: ${res.error || 'Invalid Gist'}`, true);
+        syncSettingsUI();
+    }
+}
+
+async function handleSyncNow() {
+    showGistStatus('Syncing progress to GitHub Gist...');
+    const res = await pushToGist();
+    if (res.success) {
+        showGistStatus('Synced successfully with GitHub Gist.');
+    } else {
+        showGistStatus(`Sync failed: ${res.error || 'Network error'}`, true);
+    }
+}
+
+async function handlePullGist() {
+    showGistStatus('Pulling latest progress from GitHub Gist...');
+    const res = await pullFromGist({ smartMerge: true });
+    if (res.success) {
+        showGistStatus('Progress pulled and merged successfully.');
+        syncSettingsUI();
+    } else {
+        showGistStatus(`Pull failed: ${res.error || 'Network error'}`, true);
+    }
+}
+
+function handleUnlinkGist() {
+    showConfirmDialog({
+        title: 'Unlink GitHub Gist',
+        message: 'Are you sure you want to unlink this Gist? Your current local progress will be preserved, but automatic syncing will stop.',
+        confirmText: 'Unlink Gist',
+        onConfirm: () => {
+            store.getState().unlinkGist();
+            syncSettingsUI();
+            showGistStatus('Gist unlinked.');
         },
     });
 }

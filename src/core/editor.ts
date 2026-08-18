@@ -214,18 +214,3 @@ export function loadExerciseCode(
     }
 }
 
-// Backward-compatible alias for initEditor
-export function initEditor(
-    initialCode: string,
-    languageExtension?: Extension,
-    onSave?: () => void,
-    _forceCodeUpdate = true,
-    exerciseId?: string,
-    languageId?: string
-) {
-    const { currentExerciseId, currentLanguageId } = store.getState();
-    const exId = exerciseId || currentExerciseId;
-    const langId = languageId || currentLanguageId;
-    loadExerciseCode(exId, langId, initialCode, languageExtension, onSave);
-}
-

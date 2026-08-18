@@ -9,22 +9,13 @@ export interface Exercise {
     id: string;
     title: string;
     description: string;
-    initialCode?: string;
-    testCode?: string;
-    solutionCode?: string;
-    validate?: (code: string, output: string) => true | string;
     variants?: Record<string, LanguageVariant>;
 }
 
 export function getExerciseVariant(exercise: Exercise, langId: string): LanguageVariant {
-    if (exercise.variants && exercise.variants[langId]) {
-        return exercise.variants[langId];
-    }
-    return {
-        initialCode: exercise.initialCode || '',
-        testCode: exercise.testCode || '',
-        solutionCode: exercise.solutionCode || '',
-        validate: exercise.validate,
+    return exercise.variants?.[langId] || {
+        initialCode: '',
+        testCode: '',
     };
 }
 
@@ -41,20 +32,6 @@ export interface ExecutionResult {
     error?: string;
 }
 
-export type WorkerRequest = {
-    type: 'RUN';
-    id: string;
-    userCode: string;
-    testCode?: string;
-};
-
-export type WorkerResponse = {
-    type: 'RESULT';
-    id: string;
-    success: boolean;
-    output: string;
-    error?: string;
-};
 
 export type RunnerStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -124,6 +101,21 @@ export const defaultChatSettings: ChatSettings = {
     ],
 };
 
+export interface GistSyncSettings {
+    enabled: boolean;
+    token: string;
+    gistId: string;
+    autoSync: boolean;
+    lastSyncedAt?: number;
+}
+
+export const defaultGistSyncSettings: GistSyncSettings = {
+    enabled: false,
+    token: '',
+    gistId: '',
+    autoSync: true,
+};
+
 // Store Slices & Combined AppState
 export interface ExerciseSlice {
     currentExerciseId: string;
@@ -157,9 +149,15 @@ export interface SettingsSlice {
     setChatSettings: (settings: Partial<ChatSettings>) => void;
 }
 
+export interface SyncSlice {
+    gistSyncSettings: GistSyncSettings;
+    setGistSyncSettings: (settings: Partial<GistSyncSettings>) => void;
+    unlinkGist: () => void;
+}
+
 export interface BackupSlice {
     resetProgress: () => void;
     restoreBackup: (backupState: Partial<AppState>) => void;
 }
 
-export type AppState = ExerciseSlice & ChatSlice & SettingsSlice & BackupSlice;
+export type AppState = ExerciseSlice & ChatSlice & SettingsSlice & SyncSlice & BackupSlice;

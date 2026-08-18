@@ -29,14 +29,6 @@ export interface ActiveStreamSession {
 
 const activeStreams = new Map<string, ActiveStreamSession>();
 
-export function isStreamingActive(conversationId?: string): boolean {
-  if (conversationId) {
-    return activeStreams.has(conversationId);
-  }
-  const currentExId = store.getState().currentExerciseId;
-  const activeConv = store.getState().getActiveConversation(currentExId);
-  return activeConv ? activeStreams.has(activeConv.id) : false;
-}
 
 export function abortAllStreams() {
   for (const session of activeStreams.values()) {
@@ -221,17 +213,6 @@ export function syncPanelVisibility() {
   }
 }
 
-export function scrollToChat(smooth: boolean = true) {
-  const scrollContainer = elements.chat.scrollContainer;
-  const chatSection = elements.chat.section;
-  if (!scrollContainer || !chatSection) return;
-
-  const targetOffset = chatSection.offsetTop - 16;
-  scrollContainer.scrollTo({
-    top: Math.max(0, targetOffset),
-    behavior: smooth ? 'smooth' : 'auto',
-  });
-}
 
 export function focusChatInput() {
   const cs = store.getState().chatSettings;
@@ -240,9 +221,6 @@ export function focusChatInput() {
   }
 }
 
-export function isChatEnabled(): boolean {
-  return !!store.getState().chatSettings?.enabled;
-}
 
 export function renderConversationTabs() {
   const container = elements.chat.tabsContainer;

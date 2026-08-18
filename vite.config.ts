@@ -78,7 +78,7 @@ function yamlPlugin(): Plugin {
 
 const DEFAULT_SITE_CONFIG = {
   title: "codebook",
-  subtitle: "by wrongfirst.dev",
+  subtitle: "by wrongfirst",
   logo_emoji: "📓",
 };
 

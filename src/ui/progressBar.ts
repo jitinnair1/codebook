@@ -16,7 +16,7 @@ export function renderProgressBar(
 
         container.innerHTML = currentChapter.exercises.map((e, idx) => {
             const isCompleted = completedIds.includes(e.id);
-            const isNext = idx === nextUncompletedIndex || (nextUncompletedIndex === -1 && false);
+            const isNext = idx === nextUncompletedIndex;
             const isLast = idx === total - 1;
             const isActive = e.id === currentExerciseId;
 

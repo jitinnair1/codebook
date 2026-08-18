@@ -1,10 +1,10 @@
-//src/main.ts
 import './input.css';
-import { store, decryptStoredChatSettings } from './core/store';
+import { store, decryptStoredSettings } from './core/store';
+import { initStartupSync } from './core/sync/syncManager';
 import { exercises, curriculum } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
 import { loadExerciseCode, setEditorCode, updateEditorTheme } from './core/editor';
-import { configureMarkdown, parseMarkdown, highlightStaticBlocks, escapeHtml } from './core/markdown';
+import { parseMarkdown, highlightStaticBlocks, escapeHtml } from './core/markdown';
 
 //module imports
 import { elements } from './core/elements';
@@ -38,7 +38,6 @@ initSettings();
 initChatPanel();
 initResetProgress();
 renderFooter();
-configureMarkdown();
 
 //load speedrun modal only in dev environments
 if (import.meta.env.DEV) {
@@ -107,7 +106,6 @@ function render() {
         const fullContent = titleHtml + descHtml;
 
         if (elements.description.desktop) elements.description.desktop.innerHTML = fullContent;
-        if (elements.description.mobile) elements.description.mobile.innerHTML = fullContent;
 
         //update nav
         if (navActions) navActions.updateNavState(currentExerciseId);
@@ -209,10 +207,12 @@ if (hashId && exercises.some(e => e.id === hashId)) {
 //initial render
 render();
 
-//kick off background key decryption (non-blocking)
-decryptStoredChatSettings(store).catch((err) => {
-    console.warn('[main] Background key decryption failed:', err);
-});
+//kick off background credential decryption and startup sync (non-blocking)
+decryptStoredSettings(store)
+    .then(() => initStartupSync())
+    .catch((err) => {
+        console.warn('[main] Startup decryption or sync check failed:', err);
+    });
 
 //immediately boot the active language runner
 const activeLangId = store.getState().currentLanguageId;

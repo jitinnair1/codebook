@@ -1,6 +1,6 @@
 // src/core/store/backup.ts
 import { exercises } from '../../exercises/exercise-registry';
-import { AppState, ChatConversation, ChatMessage, defaultChatSettings } from '../types';
+import { AppState, defaultChatSettings, defaultGistSyncSettings } from '../types';
 
 /**
  * Returns the reset state for user progress while keeping settings intact.
@@ -16,7 +16,7 @@ export function getInitialProgressState(): Partial<AppState> {
 }
 
 /**
- * Validates and sanitizes a raw backup state payload, handling backward compatibility.
+ * Validates and sanitizes a raw backup state payload.
  */
 export function sanitizeBackupData(
   backupState: Partial<AppState>,
@@ -56,30 +56,18 @@ export function sanitizeBackupData(
     if (backupState.activeConversationId && typeof backupState.activeConversationId === 'object') {
       restoredActive = backupState.activeConversationId;
     }
-  } else if ((backupState as any).chatHistory && typeof (backupState as any).chatHistory === 'object') {
-    // Backward-compatibility import from legacy backup format
-    const legacyHistory = (backupState as any).chatHistory;
-    const migratedConvs: Record<string, ChatConversation[]> = {};
-    const migratedActive: Record<string, string> = {};
-    for (const [exId, msgs] of Object.entries(legacyHistory)) {
-      if (Array.isArray(msgs) && msgs.length > 0) {
-        const convId = `conv-${Date.now()}-${exId}`;
-        migratedConvs[exId] = [
-          {
-            id: convId,
-            exerciseId: exId,
-            languageId: backupState.currentLanguageId || current.currentLanguageId,
-            title: 'Chat 1',
-            createdAt: (msgs[0] as any)?.timestamp || Date.now(),
-            updatedAt: (msgs[msgs.length - 1] as any)?.timestamp || Date.now(),
-            messages: msgs as ChatMessage[],
-          },
-        ];
-        migratedActive[exId] = convId;
-      }
-    }
-    restoredConvs = migratedConvs;
-    restoredActive = migratedActive;
+  }
+
+  let restoredGistSyncSettings = current.gistSyncSettings || defaultGistSyncSettings;
+  if (backupState.gistSyncSettings && typeof backupState.gistSyncSettings === 'object') {
+    const rawSync = backupState.gistSyncSettings;
+    restoredGistSyncSettings = {
+      enabled: typeof rawSync.enabled === 'boolean' ? rawSync.enabled : restoredGistSyncSettings.enabled,
+      token: (typeof rawSync.token === 'string' && rawSync.token.trim()) ? rawSync.token.trim() : (restoredGistSyncSettings.token || ''),
+      gistId: typeof rawSync.gistId === 'string' ? rawSync.gistId.trim() : (restoredGistSyncSettings.gistId || ''),
+      autoSync: typeof rawSync.autoSync === 'boolean' ? rawSync.autoSync : (restoredGistSyncSettings.autoSync !== false),
+      lastSyncedAt: typeof rawSync.lastSyncedAt === 'number' ? rawSync.lastSyncedAt : restoredGistSyncSettings.lastSyncedAt,
+    };
   }
 
   return {
@@ -105,5 +93,6 @@ export function sanitizeBackupData(
     chatSettings: restoredChatSettings,
     chatConversations: restoredConvs,
     activeConversationId: restoredActive,
+    gistSyncSettings: restoredGistSyncSettings,
   };
 }

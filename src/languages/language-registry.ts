@@ -54,27 +54,27 @@ for (const path in metadataModules) {
   const linter = linterMod ? (linterMod.lintExtension || linterMod.default) : undefined;
   if (linter) {
     linterMap.set(langId, linter);
-  } else if (syntaxMod?.lintExtension) {
-    linterMap.set(langId, syntaxMod.lintExtension);
   }
 }
 
 // Extract site config for enabled languages & default language
-const configAny = siteConfig as any;
+interface SiteConfig {
+  default_language?: string;
+  languages?: string[];
+  [key: string]: any;
+}
+const config = siteConfig as SiteConfig;
 const allDiscoveredIds = Array.from(metadataMap.keys());
-const fallbackDefaultId = allDiscoveredIds.length > 0 ? allDiscoveredIds[0] : '';
 
-const rawLanguages: string[] = Array.isArray(configAny.languages)
-  ? configAny.languages
-  : (configAny.default_language || configAny.language)
-    ? [configAny.default_language || configAny.language]
-    : allDiscoveredIds;
+const rawLanguages: string[] = Array.isArray(config.languages)
+  ? config.languages
+  : (config.default_language ? [config.default_language] : allDiscoveredIds);
 
 export const enabledLanguageIds = rawLanguages.filter(id => metadataMap.has(id));
 
 export const defaultLanguageId: string =
-  configAny.default_language ||
-  (enabledLanguageIds.length > 0 ? enabledLanguageIds[0] : fallbackDefaultId);
+  config.default_language ||
+  (enabledLanguageIds.length > 0 ? enabledLanguageIds[0] : (allDiscoveredIds[0] || ''));
 
 // Cache for loaded CodeRunner instances and pending load promises
 const runnerCache = new Map<string, CodeRunner>();
@@ -159,10 +159,6 @@ export function getLanguageExtension(id: string): Extension {
   if (syntax) extensions.push(syntax);
   if (linter) extensions.push(linter);
   return extensions;
-}
-
-export function getAllDiscoveredLanguages(): LanguageMetadata[] {
-  return Array.from(metadataMap.values());
 }
 
 let isPrewarming = false;

@@ -103,10 +103,6 @@ const chatMarked = new Marked({
     }
 });
 
-export function configureMarkdown() {
-    // Configured via dedicated Marked instances
-}
-
 export const parseMarkdown = (text: string): string => {
     const raw = descMarked.parse(text) as string;
     return DOMPurify.sanitize(raw, PURIFY_CONFIG);

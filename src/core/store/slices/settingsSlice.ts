@@ -1,6 +1,6 @@
-// src/core/store/slices/settingsSlice.ts
 import { StateCreator } from 'zustand/vanilla';
 import { AppState, ChatSettings, defaultChatSettings, SettingsSlice } from '../../types';
+import { scheduleAutoPush } from '../../sync/syncManager';
 
 /**
  * Pure helper function to synchronize chat settings and active endpoint fields.
@@ -13,21 +13,6 @@ export function syncChatSettings(
     ...current,
     ...newSettings,
   };
-
-  // Ensure endpoints array exists
-  if (!updated.endpoints || updated.endpoints.length === 0) {
-    updated.endpoints = [
-      {
-        id: updated.selectedEndpointId || 'default-endpoint',
-        name: updated.baseUrl?.includes('openai.com')
-          ? 'OpenAI API'
-          : (updated.baseUrl ? 'Custom Endpoint' : 'Endpoint 1'),
-        baseUrl: updated.baseUrl || '',
-        apiKey: updated.apiKey || '',
-        model: updated.model || '',
-      },
-    ];
-  }
 
   // If switching selected endpoint, pull its configuration into active fields
   if (newSettings.selectedEndpointId && newSettings.selectedEndpointId !== current.selectedEndpointId) {
@@ -59,5 +44,6 @@ export const createSettingsSlice: StateCreator<AppState, [], [], SettingsSlice> 
   setChatSettings: (newSettings: Partial<ChatSettings>) => {
     const current = get().chatSettings;
     set({ chatSettings: syncChatSettings(current, newSettings) });
+    scheduleAutoPush();
   },
 });

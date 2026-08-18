@@ -42,14 +42,12 @@ function formatTitle(folder: string): string {
 }
 
 const rawChapters: Array<{ title: string; id?: string; exercises?: string[] }> =
-  curriculumConfig?.chapters && typeof curriculumConfig.chapters === 'object' && !Array.isArray(curriculumConfig.chapters)
+  curriculumConfig?.chapters
     ? Object.entries(curriculumConfig.chapters).map(([title, exercises]) => ({
         title,
         exercises: Array.isArray(exercises) ? (exercises as string[]) : []
       }))
-    : Array.isArray(curriculumConfig)
-    ? curriculumConfig
-    : ((curriculumConfig as any)?.chapter || (curriculumConfig as any)?.chapters || []);
+    : [];
 
 export const curriculum: Chapter[] = rawChapters.map((ch, chapterIndex) => {
   const chapterId = ch.id || generateId(ch.title);

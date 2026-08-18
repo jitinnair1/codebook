@@ -1,13 +1,13 @@
-// src/core/store.ts
 import { createStore } from 'zustand/vanilla';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { AppState } from './types';
 import { createExerciseSlice } from './store/slices/exerciseSlice';
 import { createChatSlice } from './store/slices/chatSlice';
 import { createSettingsSlice } from './store/slices/settingsSlice';
+import { createSyncSlice } from './store/slices/syncSlice';
 import { getInitialProgressState, sanitizeBackupData } from './store/backup';
 import { syncStateStorage } from './store/storage/encryptedStorage';
-import { decryptStoredChatSettings } from './store/storage/decryptSettings';
+import { decryptStoredSettings } from './store/storage/decryptSettings';
 
 export const store = createStore<AppState>()(
   persist(
@@ -15,6 +15,7 @@ export const store = createStore<AppState>()(
       ...createExerciseSlice(set, get, api),
       ...createChatSlice(set, get, api),
       ...createSettingsSlice(set, get, api),
+      ...createSyncSlice(set, get, api),
 
       resetProgress: () => {
         set(getInitialProgressState());
@@ -31,6 +32,6 @@ export const store = createStore<AppState>()(
   )
 );
 
-// Re-export all types and bootstrap helpers for complete backward compatibility
 export * from './types';
-export { decryptStoredChatSettings };
+export { decryptStoredSettings };
+

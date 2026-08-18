@@ -20,6 +20,7 @@ export interface ChatConversation {
   createdAt: number;
   updatedAt: number;
   messages: ChatMessage[];
+  unread?: boolean;
 }
 
 export interface ChatEndpoint {
@@ -58,6 +59,7 @@ export interface AppState {
   createConversation: (exerciseId: string, languageId: string, title?: string) => string;
   setActiveConversation: (exerciseId: string, conversationId: string) => void;
   updateConversationLanguage: (exerciseId: string, conversationId: string, languageId: string) => void;
+  updateConversationTitle: (exerciseId: string, conversationId: string, title: string) => void;
   deleteConversation: (exerciseId: string, conversationId: string) => void;
   getActiveConversation: (exerciseId: string) => ChatConversation | undefined;
   addChatMessage: (exerciseId: string, message: ChatMessage, conversationId?: string) => void;
@@ -305,7 +307,7 @@ export const store = createStore<AppState>()(
           id,
           exerciseId,
           languageId,
-          title: title || `Chat ${convs.length + 1}`,
+          title: title || 'Chat',
           createdAt: Date.now(),
           updatedAt: Date.now(),
           messages: [],
@@ -324,7 +326,15 @@ export const store = createStore<AppState>()(
       },
 
       setActiveConversation: (exerciseId: string, conversationId: string) => {
+        const currentConvs = get().chatConversations[exerciseId] || [];
+        const updatedConvs = currentConvs.map(c =>
+          c.id === conversationId ? { ...c, unread: false } : c
+        );
         set({
+          chatConversations: {
+            ...get().chatConversations,
+            [exerciseId]: updatedConvs,
+          },
           activeConversationId: {
             ...get().activeConversationId,
             [exerciseId]: conversationId,
@@ -336,6 +346,19 @@ export const store = createStore<AppState>()(
         const currentConvs = get().chatConversations[exerciseId] || [];
         const updatedConvs = currentConvs.map(c =>
           c.id === conversationId ? { ...c, languageId } : c
+        );
+        set({
+          chatConversations: {
+            ...get().chatConversations,
+            [exerciseId]: updatedConvs,
+          },
+        });
+      },
+
+      updateConversationTitle: (exerciseId: string, conversationId: string, title: string) => {
+        const currentConvs = get().chatConversations[exerciseId] || [];
+        const updatedConvs = currentConvs.map(c =>
+          c.id === conversationId ? { ...c, title } : c
         );
         set({
           chatConversations: {
@@ -376,6 +399,8 @@ export const store = createStore<AppState>()(
         const state = get();
         let convs = [...(state.chatConversations[exerciseId] || [])];
         let targetId = conversationId || state.activeConversationId[exerciseId];
+        const isCurrentActive = state.currentExerciseId === exerciseId && state.activeConversationId[exerciseId] === targetId;
+        const isUnread = !isCurrentActive && message.role === 'assistant';
 
         let targetConv = convs.find(c => c.id === targetId);
         if (!targetConv) {
@@ -384,10 +409,11 @@ export const store = createStore<AppState>()(
             id: newId,
             exerciseId,
             languageId: state.currentLanguageId,
-            title: `Chat ${convs.length + 1}`,
+            title: 'Chat',
             createdAt: Date.now(),
             updatedAt: Date.now(),
             messages: [message],
+            unread: isUnread,
           };
           convs.push(targetConv);
           targetId = newId;
@@ -398,11 +424,15 @@ export const store = createStore<AppState>()(
                 ...c,
                 updatedAt: Date.now(),
                 messages: [...c.messages, message],
+                unread: isCurrentActive ? false : (c.unread || isUnread),
               };
             }
             return c;
           });
         }
+
+        const existingActiveId = state.activeConversationId[exerciseId];
+        const nextActiveId = existingActiveId || targetId;
 
         set({
           chatConversations: {
@@ -411,7 +441,7 @@ export const store = createStore<AppState>()(
           },
           activeConversationId: {
             ...state.activeConversationId,
-            [exerciseId]: targetId,
+            [exerciseId]: nextActiveId,
           },
         });
       },

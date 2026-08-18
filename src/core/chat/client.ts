@@ -20,7 +20,7 @@ export interface StreamOptions {
  * Enforces maximum token ceilings and activity timeout to prevent token runaway and hangs.
  */
 export async function streamCompletion(options: StreamOptions): Promise<string> {
-  const { userPrompt, onChunk, onStatus, signal } = options;
+  const { userPrompt, conversationId, onChunk, onStatus, signal } = options;
   const timeoutMs = options.timeoutMs ?? 120000;
   const state = store.getState();
   const settings = state.chatSettings;

@@ -1,1 +1,0 @@
-import{t as e}from"./base-adapter-DIEPVRc7.js";var t=new class extends e{name=`go`;createWorker(){return new Worker(new URL(``+new URL(`worker-B5KGzuBU.js`,import.meta.url).href,``+import.meta.url),{type:`module`})}};export{t as default,t as runner};

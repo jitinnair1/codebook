@@ -1,4 +1,4 @@
-import siteConfig from '../../site.toml';
+import { siteConfig } from '../core/siteConfig';
 import type { Extension } from '@codemirror/state';
 import type { CodeRunner } from '../core/types';
 import type { LanguageMetadata } from './types';
@@ -58,12 +58,7 @@ for (const path in metadataModules) {
 }
 
 // Extract site config for enabled languages & default language
-interface SiteConfig {
-  default_language?: string;
-  languages?: string[];
-  [key: string]: any;
-}
-const config = siteConfig as SiteConfig;
+const config = siteConfig;
 const allDiscoveredIds = Array.from(metadataMap.keys());
 
 const rawLanguages: string[] = Array.isArray(config.languages)

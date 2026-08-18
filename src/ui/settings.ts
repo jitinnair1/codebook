@@ -8,7 +8,7 @@ import { abortAllStreams } from './chatPanel';
 import { showConfirmDialog } from './resetProgress';
 import { createAndLinkGist, pullFromGist, pushToGist, subscribeSyncStatus, getSyncStatus, SyncStateEvent } from '../core/sync/syncManager';
 import { validateToken, extractGistId } from '../core/sync/gistClient';
-import siteConfig from '../../site.toml';
+import { SITE_TITLE, SITE_SLUG } from '../core/siteConfig';
 
 let cachedModels: string[] = [];
 let isFetchingModels = false;
@@ -922,12 +922,9 @@ async function handleExportBackup() {
             exportGistSyncSettings.token = await decryptSecret(currentSync.token);
         }
 
-        const siteTitle = siteConfig.title || 'codebook';
-        const siteSlug = siteTitle.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'codebook';
-
         const backupPayload = {
             version: 1,
-            siteTitle,
+            siteTitle: SITE_TITLE,
             exportedAt: new Date().toISOString(),
             data: {
                 currentExerciseId: state.currentExerciseId,
@@ -952,7 +949,7 @@ async function handleExportBackup() {
         const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
 
         a.href = url;
-        a.download = `${siteSlug}-backup-${timestamp}.json`;
+        a.download = `${SITE_SLUG}-backup-${timestamp}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -980,7 +977,7 @@ async function handleImportBackup(e: Event) {
             return;
         }
 
-        const currentSiteTitle = siteConfig.title || 'codebook';
+        const currentSiteTitle = SITE_TITLE;
 
         if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') {
             showBackupStatus('Import failed: Backup file does not contain valid application state.', true);

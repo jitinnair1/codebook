@@ -1,7 +1,7 @@
-// src/core/sync/gistClient.ts
+import { SITE_TITLE, SITE_SLUG } from '../siteConfig';
 
-export const GIST_DEFAULT_FILENAME = 'codebook-sync.json';
-export const GIST_DEFAULT_DESCRIPTION = 'Codebook Progress & Settings Backup';
+export const GIST_DEFAULT_FILENAME = `${SITE_SLUG}-sync.json`;
+export const GIST_DEFAULT_DESCRIPTION = `${SITE_TITLE} Progress & Settings Backup`;
 
 export interface TokenValidationResult {
   valid: boolean;
@@ -208,9 +208,9 @@ export async function fetchGist(gistId: string, token?: string): Promise<GistAct
     const data = await res.json();
     const files = data.files || {};
 
-    // Look for codebook-sync.json in gist
-    const targetFile = files[GIST_DEFAULT_FILENAME];
-    const resolvedFilename = GIST_DEFAULT_FILENAME;
+    // Look for sync file in gist (primary filename, legacy codebook-sync.json, or first json file)
+    const targetFile = files[GIST_DEFAULT_FILENAME] || files['codebook-sync.json'] || Object.values(files).find((f: any) => f?.filename?.endsWith?.('.json'));
+    const resolvedFilename = targetFile?.filename || GIST_DEFAULT_FILENAME;
 
     if (!targetFile) {
       return { success: false, error: `Gist does not contain ${GIST_DEFAULT_FILENAME}.` };

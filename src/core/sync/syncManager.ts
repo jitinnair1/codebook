@@ -1,5 +1,5 @@
 // src/core/sync/syncManager.ts
-import siteConfig from '../../../site.toml';
+import { SITE_TITLE } from '../siteConfig';
 import { store, AppState, ChatConversation, ChatSettings } from '../store';
 import { createGist, fetchGist, updateGist, GistActionResult } from './gistClient';
 
@@ -67,7 +67,7 @@ export function buildSyncPayload(state: AppState): string {
 
   const payload = {
     version: 1,
-    siteTitle: siteConfig.title || 'codebook',
+    siteTitle: SITE_TITLE,
     exportedAt: new Date().toISOString(),
     updatedAt: Date.now(),
     data: {
@@ -232,7 +232,7 @@ export async function pullFromGist(options?: { smartMerge?: boolean }): Promise<
       return { success: false, error: errorMsg };
     }
 
-    const currentSite = siteConfig.title || 'codebook';
+    const currentSite = SITE_TITLE;
     if (parsed.siteTitle && parsed.siteTitle !== currentSite) {
       console.warn(`[sync] Gist siteTitle "${parsed.siteTitle}" differs from current "${currentSite}".`);
     }

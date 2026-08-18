@@ -5,8 +5,8 @@ import harness from './harness.ts?raw';
 
 //JN: This needs to be cleaned up later. Right now, the native ts does not ship with `typescript.js` and
 //vfs fetches from CDN by design to reduce bundle size.
-const TS_CDN_URL = 'https://cdn.jsdelivr.net/npm/typescript@5.7.2/lib/typescript.min.js';
-const TS_LIB_CDN = 'https://cdn.jsdelivr.net/npm/typescript@5.7.2/lib/';
+const TS_CDN_URL = 'https://cdn.jsdelivr.net/npm/typescript@6.0.3/lib/typescript.min.js';
+const TS_LIB_CDN = 'https://cdn.jsdelivr.net/npm/typescript@6.0.3/lib/';
 
 let ts: any = null;
 let cachedFsMap: Map<string, string> = new Map();

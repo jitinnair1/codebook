@@ -1,4 +1,5 @@
 import type { CodeRunner, ExecutionResult, RunnerStatus } from '../core/types';
+import type { DiagnosticItem } from './types';
 
 export abstract class BaseAdapter implements CodeRunner {
   abstract name: string;
@@ -18,6 +19,13 @@ export abstract class BaseAdapter implements CodeRunner {
   >();
   private requestIdCounter = 0;
 
+  protected pendingLintCallbacks = new Map<
+    string,
+    { resolve: (diags: DiagnosticItem[]) => void; timer: ReturnType<typeof setTimeout> }
+  >();
+  private lintRequestIdCounter = 0;
+  private latestLintReqId = 0;
+
   constructor() {
     this.initWorker();
   }
@@ -32,6 +40,12 @@ export abstract class BaseAdapter implements CodeRunner {
       });
     }
     this.pendingCallbacks.clear();
+
+    for (const pending of this.pendingLintCallbacks.values()) {
+      clearTimeout(pending.timer);
+      pending.resolve([]);
+    }
+    this.pendingLintCallbacks.clear();
   }
 
   protected notifyStatusListeners() {
@@ -103,6 +117,17 @@ export abstract class BaseAdapter implements CodeRunner {
             error: data.error
           });
         }
+        return;
+      }
+
+      if (data?.type === 'LINT_RESULT' && data.id) {
+        const pending = this.pendingLintCallbacks.get(data.id);
+        if (pending) {
+          clearTimeout(pending.timer);
+          this.pendingLintCallbacks.delete(data.id);
+          pending.resolve(data.diagnostics || []);
+        }
+        return;
       }
     };
 
@@ -207,6 +232,39 @@ export abstract class BaseAdapter implements CodeRunner {
         id,
         userCode,
         testCode
+      });
+    });
+  }
+
+  async lint(code: string): Promise<DiagnosticItem[]> {
+    if (!code.trim()) return [];
+    if (!this.ready || !this.worker || this.initError) return [];
+
+    const reqNum = ++this.lintRequestIdCounter;
+    this.latestLintReqId = reqNum;
+    const id = `lint_${reqNum}_${Date.now()}`;
+
+    return new Promise<DiagnosticItem[]>((resolve) => {
+      const timer = setTimeout(() => {
+        this.pendingLintCallbacks.delete(id);
+        resolve([]);
+      }, 10_000);
+
+      this.pendingLintCallbacks.set(id, {
+        resolve: (diags) => {
+          if (reqNum === this.latestLintReqId) {
+            resolve(diags);
+          } else {
+            resolve([]);
+          }
+        },
+        timer
+      });
+
+      this.worker?.postMessage({
+        type: 'LINT',
+        id,
+        code
       });
     });
   }

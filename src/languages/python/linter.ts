@@ -10,9 +10,9 @@ export const lintExtension: Extension = linter(
 
     try {
       const items = await runner.lint(code);
-      return convertDiagnostics(items, view.state.doc, 'typescript');
+      return convertDiagnostics(items, view.state.doc, 'python');
     } catch (err) {
-      console.warn('[TypeScript Linter Error]:', err);
+      console.warn('[Python Linter Error]:', err);
       return [];
     }
   },

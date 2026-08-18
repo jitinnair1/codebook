@@ -2,21 +2,24 @@ import harness from './harness.go?raw';
 import wasmExecRaw from './wasm_exec.js?raw';
 import yaegiWasmUrl from './yaegi.wasm?url';
 import { createWorkerHandler } from '../base-worker';
+import type { DiagnosticItem } from '../types';
 
 interface ParsedGoSnippet {
   imports: Set<string>;
   body: string;
+  headerLineCount: number;
 }
 
 function parseGoSnippet(code: string): ParsedGoSnippet {
   const imports = new Set<string>();
   if (!code || !code.trim()) {
-    return { imports, body: '' };
+    return { imports, body: '', headerLineCount: 0 };
   }
 
   const lines = code.split('\n');
   let inImportBlock = false;
   let inHeader = true;
+  let headerLineCount = 0;
   const bodyLines: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -24,14 +27,19 @@ function parseGoSnippet(code: string): ParsedGoSnippet {
     const trimmed = line.trim();
 
     if (inHeader) {
-      if (trimmed.startsWith('package ')) continue;
+      if (trimmed.startsWith('package ')) {
+        headerLineCount = i + 1;
+        continue;
+      }
 
       if (trimmed.startsWith('import (') || trimmed === 'import (') {
         inImportBlock = true;
+        headerLineCount = i + 1;
         continue;
       }
 
       if (inImportBlock) {
+        headerLineCount = i + 1;
         if (trimmed === ')') {
           inImportBlock = false;
           continue;
@@ -43,6 +51,7 @@ function parseGoSnippet(code: string): ParsedGoSnippet {
       }
 
       if (trimmed.startsWith('import ')) {
+        headerLineCount = i + 1;
         const importPath = trimmed.slice(7).trim();
         if (importPath) imports.add(importPath);
         continue;
@@ -51,6 +60,8 @@ function parseGoSnippet(code: string): ParsedGoSnippet {
       if (trimmed !== '' && !trimmed.startsWith('//')) {
         inHeader = false;
         bodyLines.push(line);
+      } else {
+        headerLineCount = i + 1;
       }
     } else {
       bodyLines.push(line);
@@ -59,7 +70,8 @@ function parseGoSnippet(code: string): ParsedGoSnippet {
 
   return {
     imports,
-    body: bodyLines.join('\n').trim()
+    body: bodyLines.join('\n').trim(),
+    headerLineCount
   };
 }
 
@@ -72,10 +84,6 @@ function getCachedHarness(): ParsedGoSnippet {
   return cachedHarness;
 }
 
-//JN: Go requires a separate function for cobining the harness, userCode and testCode because
-// go expects the imports to be at the same place in a single file for execution. Using Go AST
-// via WASM increases bundle size and is also slightly slower. If this becomes a bottleneck later
-// switching to the Go AST WASM might be better
 function combineGoCode(userCode: string, testCode: string): string {
   const harnessSnippet = getCachedHarness();
   const userSnippet = parseGoSnippet(userCode);
@@ -95,6 +103,28 @@ function combineGoCode(userCode: string, testCode: string): string {
     : '';
 
   return `package main\n\n${importSection}\n\n${cleanSnippets.join('\n\n')}`;
+}
+
+function combineGoForLint(userCode: string): { combined: string; userLineOffset: number; headerLineCount: number } {
+  const harnessSnippet = getCachedHarness();
+  const userSnippet = parseGoSnippet(userCode);
+
+  const imports = new Set<string>(harnessSnippet.imports);
+  userSnippet.imports.forEach((imp) => imports.add(imp));
+
+  const importSection = imports.size > 0
+    ? `import (\n\t${Array.from(imports).join('\n\t')}\n)`
+    : '';
+
+  const prefixParts: string[] = ['package main'];
+  if (importSection) prefixParts.push(importSection);
+  if (harnessSnippet.body) prefixParts.push(harnessSnippet.body);
+
+  const prefix = prefixParts.join('\n\n');
+  const userLineOffset = prefix.split('\n').length + 1;
+
+  const combined = `${prefix}\n\n${userSnippet.body}`;
+  return { combined, userLineOffset, headerLineCount: userSnippet.headerLineCount };
 }
 
 async function runWasmInterpreter(code: string): Promise<{ success: boolean; output: string; error?: string }> {
@@ -141,5 +171,56 @@ createWorkerHandler({
   async execute(userCode: string, testCode: string = '') {
     const combinedCode = combineGoCode(userCode, testCode);
     return await runWasmInterpreter(combinedCode);
+  },
+
+  async lint(userCode: string): Promise<DiagnosticItem[]> {
+    if (!userCode.trim()) return [];
+    if (typeof (self as any).yaegiEval !== 'function') return [];
+
+    const { combined, userLineOffset, headerLineCount } = combineGoForLint(userCode);
+
+    try {
+      const res = await runWasmInterpreter(combined);
+      if (res.success || !res.error) {
+        return [];
+      }
+
+      const errStr = res.error;
+      const diagnostics: DiagnosticItem[] = [];
+      const regex = /(?:^|\n)(?:_:)??(\d+):(\d+):\s*(.*)/g;
+
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(errStr)) !== null) {
+        const rawLine = parseInt(match[1], 10) || 1;
+        const col = parseInt(match[2], 10) || 1;
+        const message = match[3].trim();
+
+        let line = (rawLine - userLineOffset) + headerLineCount + 1;
+        if (line <= 0) line = 1;
+
+        diagnostics.push({
+          line,
+          column: col,
+          severity: 'error',
+          message,
+          source: 'go'
+        });
+      }
+
+      if (diagnostics.length === 0 && errStr) {
+        diagnostics.push({
+          line: 1,
+          column: 1,
+          severity: 'error',
+          message: errStr.trim(),
+          source: 'go'
+        });
+      }
+
+      return diagnostics;
+    } catch (err: any) {
+      console.warn('[Go Worker Lint Error]:', err);
+      return [];
+    }
   }
 });

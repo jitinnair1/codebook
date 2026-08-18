@@ -1,5 +1,6 @@
 import * as tsvfs from '@typescript/vfs';
 import { createWorkerHandler } from '../base-worker';
+import type { DiagnosticItem } from '../types';
 import harness from './harness.ts?raw';
 
 //JN: This needs to be cleaned up later. Right now, the native ts does not ship with `typescript.js` and
@@ -190,5 +191,66 @@ createWorkerHandler({
       };
     }
   },
+
+  async lint(userCode: string): Promise<DiagnosticItem[]> {
+    if (!userCode.trim()) return [];
+    if (!ts) {
+      ts = await loadTypeScriptCompiler();
+    }
+
+    try {
+      const fsMap = new Map(cachedFsMap);
+      fsMap.set('/index.ts', userCode);
+      fsMap.set('/harness.ts', harness);
+
+      const compilerOptions: any = {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.ESNext,
+        strict: true,
+        noEmit: true,
+        skipLibCheck: true,
+        skipDefaultLibCheck: true,
+      };
+
+      const system = tsvfs.createSystem(fsMap);
+      const host = tsvfs.createVirtualCompilerHost(system, compilerOptions, ts);
+      const program = ts.createProgram({
+        rootNames: ['/index.ts', '/harness.ts'],
+        options: compilerOptions,
+        host: host.compilerHost,
+      });
+
+      const syntacticDiagnostics = program.getSyntacticDiagnostics();
+      const semanticDiagnostics = program.getSemanticDiagnostics();
+      const diagnostics = [...syntacticDiagnostics, ...semanticDiagnostics].filter(
+        d => !d.file || d.file.fileName === '/index.ts'
+      );
+
+      const result: DiagnosticItem[] = [];
+
+      for (const d of diagnostics) {
+        const rawMsg = typeof d.messageText === 'string'
+          ? d.messageText
+          : ts.flattenDiagnosticMessageText(d.messageText, '\n');
+
+        const from = d.start !== undefined ? d.start : 0;
+        const to = d.start !== undefined ? d.start + (d.length || 1) : 1;
+        const severity: 'warning' | 'error' = d.category === ts.DiagnosticCategory.Warning ? 'warning' : 'error';
+
+        result.push({
+          from,
+          to,
+          severity,
+          message: rawMsg,
+          source: 'typescript'
+        });
+      }
+
+      return result;
+    } catch (err) {
+      console.warn('[TypeScript Worker Lint Error]:', err);
+      return [];
+    }
+  }
 });
 

@@ -1,8 +1,10 @@
 import { loadPyodide } from 'pyodide';
 import { createWorkerHandler } from '../base-worker';
+import type { DiagnosticItem } from '../types';
 import harness from './harness.py?raw';
 
 let pyodideInstance: any = null;
+let pyLintFn: any = null;
 const stdoutLogs: string[] = [];
 const stderrLogs: string[] = [];
 
@@ -10,7 +12,8 @@ async function setupPyodide() {
   if (!pyodideInstance) {
     pyodideInstance = await loadPyodide({
       //JN: We specify the url here since by default it looks to fetch assets from
-      //bundled module path which fails on deployment
+      //bundled module path which fails on deployment. TODO: clean this up so that manual intervention
+      //is not needed on upgrades
       indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.5/full/'
     });
 
@@ -25,6 +28,36 @@ async function setupPyodide() {
         stderrLogs.push(text);
       }
     });
+
+    pyLintFn = pyodideInstance.runPython(`
+import ast, json
+
+def _codebook_lint(src):
+    try:
+        ast.parse(src)
+        return "[]"
+    except SyntaxError as e:
+        diag = {
+            "line": e.lineno if e.lineno is not None else 1,
+            "column": e.offset if e.offset is not None else 1,
+            "endLine": getattr(e, 'end_lineno', None) or (e.lineno if e.lineno is not None else 1),
+            "endColumn": getattr(e, 'end_offset', None) or ((e.offset + 1) if e.offset is not None else 2),
+            "message": e.msg if e.msg else str(e),
+            "severity": "error",
+            "source": "python"
+        }
+        return json.dumps([diag])
+    except Exception as e:
+        return json.dumps([{
+            "line": 1,
+            "column": 1,
+            "message": str(e),
+            "severity": "error",
+            "source": "python"
+        }])
+
+_codebook_lint
+`);
   }
   return pyodideInstance;
 }
@@ -71,6 +104,22 @@ createWorkerHandler({
       if (pyDict && typeof pyDict.destroy === 'function') {
         pyDict.destroy();
       }
+    }
+  },
+
+  async lint(code: string): Promise<DiagnosticItem[]> {
+    if (!code.trim()) return [];
+    await setupPyodide();
+
+    if (!pyLintFn) return [];
+
+    try {
+      const rawJson = pyLintFn(code);
+      const items: DiagnosticItem[] = JSON.parse(rawJson);
+      return items;
+    } catch (err) {
+      console.warn('[Python Worker Lint Error]:', err);
+      return [];
     }
   }
 });

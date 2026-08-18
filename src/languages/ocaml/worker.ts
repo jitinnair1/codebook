@@ -1,6 +1,7 @@
 import harness from './harness.ml?raw';
 import toplevelUrl from './toplevel.bc.js?url';
 import { createWorkerHandler } from '../base-worker';
+import type { DiagnosticItem } from '../types';
 
 interface OCamlRuntime {
     run: (code: string) => { out: string; err: string; success: boolean };
@@ -14,6 +15,53 @@ function getOCamlRuntime(): OCamlRuntime | undefined {
     if (fromGlobal && typeof fromGlobal.run === 'function') return fromGlobal;
 
     return undefined;
+}
+
+function parseOCamlDiagnostics(errText: string, harnessLines: number): DiagnosticItem[] {
+    if (!errText || !errText.trim()) return [];
+
+    const diagnostics: DiagnosticItem[] = [];
+    const regex = /(?:File "[^"]*", |Line |line )?line (\d+), characters (\d+)-(\d+):[\s\S]*?(Error|Warning[^\n:]*):\s*([\s\S]*?)(?=(?:File "[^"]*", |Line |line \d+, characters)|$)/gi;
+
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(errText)) !== null) {
+        const rawLine = parseInt(match[1], 10) || 1;
+        const colStart = parseInt(match[2], 10) || 0;
+        const colEnd = parseInt(match[3], 10) || (colStart + 1);
+        const kind = match[4].toLowerCase();
+        const rawMessage = match[5].trim().replace(/\s+/g, ' ');
+
+        let userLine = rawLine;
+        if (harnessLines > 0 && userLine > harnessLines) {
+            userLine = userLine - harnessLines;
+        } else if (harnessLines > 0 && userLine <= harnessLines) {
+            userLine = 1;
+        }
+
+        const severity: 'error' | 'warning' = kind.startsWith('warning') ? 'warning' : 'error';
+
+        diagnostics.push({
+            line: userLine,
+            column: colStart + 1,
+            endLine: userLine,
+            endColumn: colEnd + 1,
+            severity,
+            message: rawMessage,
+            source: 'ocaml'
+        });
+    }
+
+    if (diagnostics.length === 0 && (errText.toLowerCase().includes('error') || errText.toLowerCase().includes('syntax'))) {
+        diagnostics.push({
+            line: 1,
+            column: 1,
+            severity: 'error',
+            message: errText.trim().replace(/\s+/g, ' '),
+            source: 'ocaml'
+        });
+    }
+
+    return diagnostics;
 }
 
 createWorkerHandler({
@@ -59,6 +107,26 @@ createWorkerHandler({
                 output: '',
                 error: err?.message || String(err)
             };
+        }
+    },
+
+    lint(code: string): DiagnosticItem[] {
+        if (!code.trim()) return [];
+        const ocaml = getOCamlRuntime();
+        if (!ocaml || !ocaml.run) return [];
+
+        const harnessLines = harness ? harness.split('\n').length : 0;
+        const combinedCode = harness ? `${harness}\n${code}\n;;` : `${code}\n;;`;
+
+        try {
+            const result = ocaml.run(combinedCode);
+            if (!result.err || !result.err.trim()) {
+                return [];
+            }
+            return parseOCamlDiagnostics(result.err, harnessLines);
+        } catch (err: any) {
+            console.warn('[OCaml Worker Lint Error]:', err);
+            return [];
         }
     }
 });

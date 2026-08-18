@@ -13,3 +13,15 @@ export interface LanguageModule {
   runner: CodeRunner;
   syntax?: Extension;
 }
+
+export interface DiagnosticItem {
+  line?: number;
+  column?: number;
+  endLine?: number;
+  endColumn?: number;
+  from?: number;
+  to?: number;
+  message: string;
+  severity?: 'error' | 'warning' | 'info';
+  source?: string;
+}

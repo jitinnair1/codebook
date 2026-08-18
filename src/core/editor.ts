@@ -3,11 +3,21 @@ import { basicSetup } from 'codemirror';
 import { EditorState, Compartment, Extension } from '@codemirror/state';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import { autocompletion, acceptCompletion } from '@codemirror/autocomplete';
-import { lintGutter } from '@codemirror/lint';
+import { lintGutter, forEachDiagnostic } from '@codemirror/lint';
 import { vim } from '@replit/codemirror-vim';
 import { themeCompartment, getTheme } from '../ui/theme';
 import { showPopup } from '../ui/popup';
 import { store } from './store';
+
+export interface EditorDiagnostic {
+    message: string;
+    severity: 'error' | 'warning' | 'info' | 'hint';
+    from: number;
+    to: number;
+    line: number;
+    column: number;
+    source?: string;
+}
 
 let view: EditorView | null = null;
 let tabCount = 0;
@@ -74,6 +84,48 @@ export function setEditorCode(code: string) {
 
 export function getCode(): string {
     return view ? view.state.doc.toString() : "";
+}
+
+/**
+ * Returns all active diagnostics currently registered on the active CodeMirror editor state.
+ */
+export function getEditorDiagnostics(): EditorDiagnostic[] {
+    const editorView = view;
+    if (!editorView) return [];
+    const diagnostics: EditorDiagnostic[] = [];
+    try {
+        forEachDiagnostic(editorView.state, (diag, from, to) => {
+            const lineObj = editorView.state.doc.lineAt(from);
+            diagnostics.push({
+                message: diag.message,
+                severity: (diag.severity as any) || 'error',
+                from,
+                to,
+                line: lineObj.number,
+                column: from - lineObj.from + 1,
+                source: diag.source
+            });
+        });
+    } catch (err) {
+        console.warn('[Editor] Error reading diagnostics:', err);
+    }
+    return diagnostics;
+}
+
+/**
+ * Formats active editor diagnostics into a human-readable list for LLM context.
+ */
+export function getFormattedLintMessages(): string {
+    const diags = getEditorDiagnostics();
+    if (diags.length === 0) {
+        return '';
+    }
+    return diags
+        .map(d => {
+            const sourceStr = d.source ? ` (${d.source})` : '';
+            return `[${d.severity.toUpperCase()}] Line ${d.line}, Col ${d.column}: ${d.message}${sourceStr}`;
+        })
+        .join('\n');
 }
 
 // Immediately flushes pending edits to the store for the active exercise/language

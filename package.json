@@ -10,6 +10,7 @@
     "serve": "node server.mjs"
   },
   "dependencies": {
+    "@astral-sh/ruff-wasm-web": "^0.9.10",
     "@catppuccin/codemirror": "^1.0.3",
     "@codemirror/autocomplete": "^6.20.2",
     "@codemirror/commands": "^6.10.3",

@@ -1,12 +1,8 @@
-import { BaseAdapter } from '../base-adapter';
+import { createLanguageAdapter } from '../base-adapter';
 
-class GoAdapter extends BaseAdapter {
-  name = 'go';
+export const runner = createLanguageAdapter(
+  'go',
+  () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
+);
 
-  protected createWorker(): Worker {
-    return new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-  }
-}
-
-export const runner = new GoAdapter();
 export default runner;

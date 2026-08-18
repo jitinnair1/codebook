@@ -66,5 +66,7 @@ export interface CodeRunner {
     getInitError?(): string | null;
     subscribeStatus?(listener: (status: RunnerStatus, error?: string | null) => void): () => void;
     run(userCode: string, testCode?: string): Promise<ExecutionResult>;
+    lint?(code: string): Promise<any>;
+    reset?(): Promise<void> | void;
     terminate?(): void;
 }

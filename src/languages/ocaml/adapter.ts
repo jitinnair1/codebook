@@ -1,12 +1,8 @@
-import { BaseAdapter } from '../base-adapter';
+import { createLanguageAdapter } from '../base-adapter';
 
-class OCamlAdapter extends BaseAdapter {
-    name = 'ocaml';
+export const runner = createLanguageAdapter(
+  'ocaml',
+  () => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
+);
 
-    protected createWorker(): Worker {
-        return new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-    }
-}
-
-export const runner = new OCamlAdapter();
 export default runner;

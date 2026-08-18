@@ -1,5 +1,6 @@
-import type { Diagnostic } from '@codemirror/lint';
-import type { Text } from '@codemirror/state';
+import { linter, type Diagnostic } from '@codemirror/lint';
+import type { Text, Extension } from '@codemirror/state';
+import type { CodeRunner } from '../core/types';
 import type { DiagnosticItem } from './types';
 
 /**
@@ -59,4 +60,30 @@ export function convertDiagnostics(
   }
 
   return result;
+}
+
+/**
+ * Creates a standard CodeMirror lint Extension for any CodeRunner that supports .lint(code).
+ */
+export function createLanguageLinter(
+  runner: { lint?: (code: string) => Promise<DiagnosticItem[]> } | CodeRunner,
+  langId: string,
+  options?: { delay?: number }
+): Extension {
+  const delay = options?.delay ?? 300;
+  return linter(
+    async (view) => {
+      const code = view.state.doc.toString();
+      if (!code.trim() || !runner.lint) return [];
+
+      try {
+        const items = await runner.lint(code);
+        return convertDiagnostics(items, view.state.doc, langId);
+      } catch (err) {
+        console.warn(`[${langId} Linter Error]:`, err);
+        return [];
+      }
+    },
+    { delay }
+  );
 }

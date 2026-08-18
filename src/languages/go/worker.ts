@@ -44,7 +44,7 @@ function parseGoSnippet(code: string): ParsedGoSnippet {
           inImportBlock = false;
           continue;
         }
-        if (trimmed && !trimmed.startsWith('//')) {
+        if (trimmed && !trimmed.startsWith('//') && !trimmed.startsWith('/*')) {
           imports.add(trimmed);
         }
         continue;
@@ -57,7 +57,7 @@ function parseGoSnippet(code: string): ParsedGoSnippet {
         continue;
       }
 
-      if (trimmed !== '' && !trimmed.startsWith('//')) {
+      if (trimmed !== '' && !trimmed.startsWith('//') && !trimmed.startsWith('/*')) {
         inHeader = false;
         bodyLines.push(line);
       } else {

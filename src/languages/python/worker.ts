@@ -7,8 +7,9 @@ import { initMypy, isMypyReady, checkWithMypy } from './mypy-checker';
 
 let pyodideInstance: any = null;
 let pyodideInitPromise: Promise<any> | null = null;
-const stdoutLogs: string[] = [];
-const stderrLogs: string[] = [];
+
+let currentStdoutCollector: ((text: string) => void) | null = null;
+let currentStderrCollector: ((text: string) => void) | null = null;
 
 async function setupPyodide(): Promise<any> {
   if (pyodideInstance) {
@@ -28,13 +29,17 @@ async function setupPyodide(): Promise<any> {
 
     instance.setStdout({
       batched: (text: string) => {
-        stdoutLogs.push(text);
+        if (currentStdoutCollector) {
+          currentStdoutCollector(text);
+        }
       }
     });
 
     instance.setStderr({
       batched: (text: string) => {
-        stderrLogs.push(text);
+        if (currentStderrCollector) {
+          currentStderrCollector(text);
+        }
       }
     });
 
@@ -58,9 +63,6 @@ createWorkerHandler({
   },
 
   async execute(userCode: string, testCode: string = '') {
-    stdoutLogs.length = 0;
-    stderrLogs.length = 0;
-
     const instance = await setupPyodide();
 
     // Phase 1: Static Type Checking with Mypy (Strict Mode)
@@ -84,7 +86,12 @@ createWorkerHandler({
       }
     }
 
-    // Phase 2: Runtime Execution
+    // Phase 2: Runtime Execution with isolated stdout/stderr buffers
+    const localStdout: string[] = [];
+    const localStderr: string[] = [];
+    currentStdoutCollector = (text: string) => localStdout.push(text);
+    currentStderrCollector = (text: string) => localStderr.push(text);
+
     const combinedCode = testCode ? `${harness}\n\n${userCode}\n\n${testCode}` : `${harness}\n\n${userCode}`;
     const pyDict = typeof instance.globals?.get === 'function' ? instance.globals.get('dict')() : null;
 
@@ -99,21 +106,30 @@ createWorkerHandler({
       } else {
         await instance.runPythonAsync(combinedCode);
       }
-      const output = stdoutLogs.join('\n');
-      const errorStr = stderrLogs.join('\n');
+
+      const stdout = localStdout.join('\n');
+      const stderr = localStderr.join('\n');
+      const combinedOutput = stderr ? (stdout ? `${stdout}\n${stderr}` : stderr) : stdout;
 
       return {
         success: true,
-        output,
-        error: errorStr || undefined
+        output: combinedOutput,
+        error: undefined
       };
     } catch (err: any) {
+      const stdout = localStdout.join('\n');
+      const stderr = localStderr.join('\n');
+      const combinedOutput = stderr ? (stdout ? `${stdout}\n${stderr}` : stderr) : stdout;
+
       return {
         success: false,
-        output: stdoutLogs.join('\n'),
+        output: combinedOutput,
         error: err?.message || String(err)
       };
     } finally {
+      currentStdoutCollector = null;
+      currentStderrCollector = null;
+
       if (pyDict && typeof pyDict.destroy === 'function') {
         pyDict.destroy();
       }

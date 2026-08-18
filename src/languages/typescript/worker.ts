@@ -5,11 +5,32 @@ import harness from './harness.ts?raw';
 
 //JN: This needs to be cleaned up later. Right now, the native ts does not ship with `typescript.js` and
 //vfs fetches from CDN by design to reduce bundle size.
-const TS_CDN_URL = 'https://cdn.jsdelivr.net/npm/typescript@6.0.3/lib/typescript.min.js';
-const TS_LIB_CDN = 'https://cdn.jsdelivr.net/npm/typescript@6.0.3/lib/';
+const TS_VERSION = '6.0.3';
+const TS_CDN_URL = `https://cdn.jsdelivr.net/npm/typescript@${TS_VERSION}/lib/typescript.min.js`;
+const TS_LIB_CDN = `https://cdn.jsdelivr.net/npm/typescript@${TS_VERSION}/lib/`;
 
 let ts: any = null;
 let cachedFsMap: Map<string, string> = new Map();
+
+function formatConsoleArg(arg: any): string {
+  if (typeof arg === 'string') return arg;
+  if (typeof arg === 'undefined') return 'undefined';
+  if (arg === null) return 'null';
+  if (typeof arg === 'function') return `[Function: ${arg.name || 'anonymous'}]`;
+  if (arg instanceof Error) return arg.stack || `${arg.name}: ${arg.message}`;
+  try {
+    const seen = new WeakSet();
+    return JSON.stringify(arg, (_key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) return '[Circular]';
+        seen.add(value);
+      }
+      return value;
+    });
+  } catch {
+    return String(arg);
+  }
+}
 
 async function loadTypeScriptCompiler(): Promise<any> {
   if (typeof (self as any).ts !== 'undefined') {
@@ -29,8 +50,6 @@ async function loadTypeScriptCompiler(): Promise<any> {
 
   return (self as any).ts;
 }
-
-
 
 createWorkerHandler({
   async init() {
@@ -67,7 +86,7 @@ createWorkerHandler({
 
     cachedFsMap = await tsvfs.createDefaultMapFromCDN(
       compilerOptions,
-      '5.7.2',
+      TS_VERSION,
       true,
       ts,
       undefined,
@@ -83,10 +102,13 @@ createWorkerHandler({
 
     const outputs: string[] = [];
     const customConsole = {
-      log: (...args: any[]) => outputs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
-      error: (...args: any[]) => outputs.push('[error] ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
-      warn: (...args: any[]) => outputs.push('[warn] ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
-      info: (...args: any[]) => outputs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
+      log: (...args: any[]) => outputs.push(args.map(formatConsoleArg).join(' ')),
+      error: (...args: any[]) => outputs.push('[error] ' + args.map(formatConsoleArg).join(' ')),
+      warn: (...args: any[]) => outputs.push('[warn] ' + args.map(formatConsoleArg).join(' ')),
+      info: (...args: any[]) => outputs.push(args.map(formatConsoleArg).join(' ')),
+      debug: (...args: any[]) => outputs.push('[debug] ' + args.map(formatConsoleArg).join(' ')),
+      dir: (arg: any) => outputs.push(formatConsoleArg(arg)),
+      table: (arg: any) => outputs.push(formatConsoleArg(arg)),
     };
 
     const harnessLines = harness.split('\n').length;
@@ -253,4 +275,3 @@ createWorkerHandler({
     }
   }
 });
-

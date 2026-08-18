@@ -2,6 +2,7 @@ import siteConfig from '../../site.toml';
 import type { Extension } from '@codemirror/state';
 import type { CodeRunner } from '../core/types';
 import type { LanguageMetadata } from './types';
+import { createLanguageLinter } from './lint-helper';
 
 // Discover metadata and syntax extensions synchronously for immediate UI rendering
 const metadataModules = import.meta.glob<{ metadata?: LanguageMetadata; default?: LanguageMetadata }>(
@@ -139,12 +140,21 @@ export function getLanguageSyntax(id: string): Extension | undefined {
 }
 
 export function getLanguageLinter(id: string): Extension | undefined {
-  return linterMap.get(id);
+  if (linterMap.has(id)) {
+    return linterMap.get(id);
+  }
+  const runner = runnerCache.get(id);
+  if (runner && typeof runner.lint === 'function') {
+    const autoLinter = createLanguageLinter(runner, id);
+    linterMap.set(id, autoLinter);
+    return autoLinter;
+  }
+  return undefined;
 }
 
 export function getLanguageExtension(id: string): Extension {
   const syntax = syntaxMap.get(id);
-  const linter = linterMap.get(id);
+  const linter = getLanguageLinter(id);
   const extensions: Extension[] = [];
   if (syntax) extensions.push(syntax);
   if (linter) extensions.push(linter);

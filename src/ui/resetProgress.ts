@@ -2,6 +2,7 @@ import { elements } from '../core/elements';
 import { ICONS } from './icons';
 import { store } from '../core/store';
 import { abortAllStreams } from './chatPanel';
+import { pushToGist } from '../core/sync/syncManager';
 
 export interface ConfirmDialogOptions {
     title?: string;
@@ -25,9 +26,15 @@ export function initResetProgress() {
             title: 'Reset Progress',
             message: 'Are you sure you want to reset all progress? This will delete your saved code and completion status for all exercises. This action cannot be undone.',
             confirmText: 'Reset All',
-            onConfirm: () => {
+            onConfirm: async () => {
                 abortAllStreams();
                 store.getState().resetProgress();
+                
+                const { gistSyncSettings } = store.getState();
+                if (gistSyncSettings?.enabled && gistSyncSettings?.gistId && gistSyncSettings?.token) {
+                    await pushToGist();
+                }
+
                 window.location.reload();
             },
         });

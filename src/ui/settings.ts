@@ -6,14 +6,17 @@ import { decryptSecret } from '../core/crypto';
 import { ICONS } from './icons';
 import { abortAllStreams } from './chatPanel';
 import { showConfirmDialog } from './resetProgress';
-import { pullFromGist, pushToGist, initiateOAuthLogin, subscribeSyncStatus, getSyncStatus, SyncStateEvent } from '../core/sync/syncManager';
+import { showPopup } from './popup';
+import { pullFromGist, pushToGist, initiateOAuthLogin, subscribeSyncStatus, getSyncStatus, SyncStateEvent, createAndLinkGist } from '../core/sync/syncManager';
 import { validateToken, extractGistId } from '../core/sync/gistClient';
 import { SITE_TITLE, SITE_SLUG } from '../core/siteConfig';
+import { buildManualExportPayload, parseManualImport } from '../core/backup';
 
 let cachedModels: string[] = [];
 let isFetchingModels = false;
 let modelFetchError: string | null = null;
 let isDetailsExpanded = false;
+let isManualGistExpanded = false;
 
 export function initSettings() {
     if (elements.settingsBtn) {
@@ -30,6 +33,9 @@ export function initSettings() {
     }
     if (elements.settings.clearStorageIcon) {
         elements.settings.clearStorageIcon.innerHTML = ICONS.TRASH;
+    }
+    if (elements.settings.gistManualChevron) {
+        elements.settings.gistManualChevron.innerHTML = ICONS.CHEVRON_RIGHT;
     }
 
     // Subscribe to reactive sync status updates
@@ -133,6 +139,17 @@ function bindStaticListeners() {
     // Gist Sync listeners
     elements.settings.gistOAuthLoginBtn?.addEventListener('click', () => {
         initiateOAuthLogin();
+    });
+
+    // Collapsible Manual PAT toggle
+    updateManualGistToggleUI();
+    elements.settings.gistManualToggleBtn?.addEventListener('click', () => {
+        isManualGistExpanded = !isManualGistExpanded;
+        updateManualGistToggleUI();
+    });
+
+    elements.settings.gistManualConnectBtn?.addEventListener('click', () => {
+        handleManualGistConnect();
     });
 
     elements.settings.gistSyncNowBtn?.addEventListener('click', () => {
@@ -859,63 +876,7 @@ async function handleExportBackup() {
         const state = store.getState();
         const includeKeys = !!elements.settings.includeKeysCheckbox?.checked;
 
-        // Copy and sanitize chat settings based on checkbox
-        let exportChatSettings: ChatSettings = {
-            ...state.chatSettings,
-            endpoints: (state.chatSettings.endpoints || []).map(ep => ({ ...ep })),
-        };
-
-        if (!includeKeys) {
-            exportChatSettings.apiKey = '';
-            exportChatSettings.endpoints = exportChatSettings.endpoints.map(ep => ({
-                ...ep,
-                apiKey: '',
-            }));
-        } else {
-            exportChatSettings.apiKey = await decryptSecret(exportChatSettings.apiKey || '');
-            exportChatSettings.endpoints = await Promise.all(
-                exportChatSettings.endpoints.map(async (ep) => ({
-                    ...ep,
-                    apiKey: await decryptSecret(ep.apiKey || ''),
-                }))
-            );
-        }
-
-        // Copy and sanitize Gist sync settings based on checkbox
-        const currentSync = state.gistSyncSettings || {
-            enabled: false,
-            token: '',
-            gistId: '',
-            autoSync: true,
-        };
-
-        let exportGistSyncSettings: GistSyncSettings = {
-            ...currentSync,
-            token: '',
-        };
-
-        if (includeKeys && currentSync.token) {
-            exportGistSyncSettings.token = await decryptSecret(currentSync.token);
-        }
-
-        const backupPayload = {
-            version: 1,
-            siteTitle: SITE_TITLE,
-            exportedAt: new Date().toISOString(),
-            data: {
-                currentExerciseId: state.currentExerciseId,
-                currentLanguageId: state.currentLanguageId,
-                completedIds: state.completedIds,
-                userCode: state.userCode,
-                vimMode: state.vimMode,
-                chatSettings: exportChatSettings,
-                chatConversations: state.chatConversations,
-                activeConversationId: state.activeConversationId,
-                gistSyncSettings: exportGistSyncSettings,
-            },
-        };
-
-        const dataStr = JSON.stringify(backupPayload, null, 2);
+        const dataStr = await buildManualExportPayload(state, { includeKeys });
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -944,42 +905,20 @@ async function handleImportBackup(e: Event) {
 
     try {
         const text = await file.text();
-        let parsed: any;
-        try {
-            parsed = JSON.parse(text);
-        } catch {
-            showBackupStatus('Import failed: The selected file is not valid JSON.', true);
-            input.value = '';
-            return;
-        }
+        const result = parseManualImport(text, store.getState());
 
-        const currentSiteTitle = SITE_TITLE;
-
-        if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') {
-            showBackupStatus('Import failed: Backup file does not contain valid application state.', true);
-            input.value = '';
-            return;
-        }
-
-        const backupData = parsed.data;
-        const fileSiteTitle = parsed.siteTitle || null;
-
-        // Strict siteTitle validation
-        if (fileSiteTitle && fileSiteTitle !== currentSiteTitle) {
-            showBackupStatus(
-                `Import rejected: Backup is for "${fileSiteTitle}", but current site is "${currentSiteTitle}".`,
-                true
-            );
+        if (!result.success || !result.data) {
+            showBackupStatus(result.error || 'Import failed: The selected file is not valid JSON.', true);
             input.value = '';
             return;
         }
 
         // Apply backup to store
-        store.getState().restoreBackup(backupData);
+        store.getState().restoreBackup(result.data);
 
         // Sync editor vim mode and UI
-        if (typeof backupData.vimMode === 'boolean') {
-            updateEditorVimMode(backupData.vimMode);
+        if (typeof result.data.vimMode === 'boolean') {
+            updateEditorVimMode(result.data.vimMode);
         }
         cachedModels = [];
         modelFetchError = null;
@@ -1164,6 +1103,25 @@ function renderGistSection(settings: GistSyncSettings) {
     updateSyncStatusUI(getSyncStatus());
 }
 
+function updateManualGistToggleUI() {
+    const view = elements.settings.gistManualView;
+    const chevron = elements.settings.gistManualChevron;
+    const label = elements.settings.gistManualToggleLabel;
+
+    if (view) {
+        view.classList.toggle('hidden', !isManualGistExpanded);
+        view.classList.toggle('flex', isManualGistExpanded);
+    }
+    if (chevron) {
+        chevron.classList.toggle('rotate-90', isManualGistExpanded);
+    }
+    if (label) {
+        label.textContent = isManualGistExpanded
+            ? 'Hide Personal Access Token (PAT) setup'
+            : 'Or connect manually with Personal Access Token (PAT)';
+    }
+}
+
 function showGistStatus(message: string, isError = false) {
     const el = elements.settings.gistStatusMsg;
     if (!el) return;
@@ -1214,6 +1172,68 @@ function handleUnlinkGist() {
             showGistStatus('Disconnected from GitHub Gist.');
         },
     });
+}
+
+async function handleManualGistConnect() {
+    const tokenInput = elements.settings.gistManualToken;
+    const idInput = elements.settings.gistManualId;
+    if (!tokenInput || !idInput) return;
+
+    const token = tokenInput.value.trim();
+    const gistId = idInput.value.trim();
+
+    if (!token) {
+        showGistStatus('Error: GitHub Personal Access Token is required.', true);
+        return;
+    }
+
+    const { gistManualConnectBtn } = elements.settings;
+    if (gistManualConnectBtn) {
+        gistManualConnectBtn.disabled = true;
+        gistManualConnectBtn.textContent = 'Connecting...';
+    }
+
+    try {
+        if (gistId) {
+            // Connect to existing Gist
+            const now = Date.now();
+            store.getState().setGistSyncSettings({
+                enabled: true,
+                token,
+                gistId,
+                autoSync: true,
+                lastSyncedAt: now,
+            });
+            const res = await pullFromGist({ smartMerge: true });
+            if (res.success) {
+                showGistStatus('Connected and pulled from Gist successfully.');
+                showPopup('Connected to GitHub!');
+                tokenInput.value = '';
+                idInput.value = '';
+                syncSettingsUI();
+            } else {
+                store.getState().unlinkGist();
+                showGistStatus(`Failed to pull from Gist: ${res.error}`, true);
+            }
+        } else {
+            // Create new Gist
+            const res = await createAndLinkGist(token);
+            if (res.success) {
+                showGistStatus('New Gist created and linked successfully.');
+                showPopup('Connected to GitHub!');
+                tokenInput.value = '';
+                idInput.value = '';
+                syncSettingsUI();
+            } else {
+                showGistStatus(`Failed to create Gist: ${res.error}`, true);
+            }
+        }
+    } finally {
+        if (gistManualConnectBtn) {
+            gistManualConnectBtn.disabled = false;
+            gistManualConnectBtn.textContent = 'Connect Manually';
+        }
+    }
 }
 
 

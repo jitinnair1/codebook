@@ -1,6 +1,6 @@
+// src/core/sync/gistClient.ts
 import { SITE_TITLE, SITE_SLUG } from '../siteConfig';
 
-export const GIST_DEFAULT_FILENAME = `${SITE_SLUG}-sync.json`;
 export const GIST_DEFAULT_DESCRIPTION = `${SITE_TITLE} Progress & Settings Backup`;
 
 export interface TokenValidationResult {
@@ -10,21 +10,36 @@ export interface TokenValidationResult {
   error?: string;
 }
 
+export interface GistFileEntry {
+  filename: string;
+  content?: string;
+  truncated?: boolean;
+  raw_url?: string;
+  size?: number;
+}
+
 export interface GistActionResult {
   success: boolean;
   gistId?: string;
   htmlUrl?: string;
-  content?: string;
-  filename?: string;
+  files?: Record<string, GistFileEntry>;
   updatedAt?: string;
   error?: string;
+}
+
+export interface DiscoveredGist {
+  gistId: string;
+  htmlUrl?: string;
+  updatedAt?: string;
+  description?: string;
+  filenames: string[];
 }
 
 /**
  * Extracts a bare Gist ID from a raw ID or full GitHub Gist URL.
  * Handles inputs like:
  * - "https://gist.github.com/username/6a7b8c9d0e1f2a3b"
- * - "gist.github.com/6a7b8c9d0e1f2a3b#file-codebook-sync-json"
+ * - "gist.github.com/6a7b8c9d0e1f2a3b#file-progress-json"
  * - "6a7b8c9d0e1f2a3b"
  */
 export function extractGistId(input: string): string {
@@ -35,8 +50,9 @@ export function extractGistId(input: string): string {
   const withoutParams = trimmed.split(/[?#]/)[0];
 
   // If it's a URL, grab the last path segment
-  const match = withoutParams.match(/(?:gists?\.github\.com\/[^\/]+\/|^)([a-f0-9]+)\/?$/i) ||
-                withoutParams.match(/([a-f0-9]{20,32})/i);
+  const match =
+    withoutParams.match(/(?:gists?\.github\.com\/[^\/]+\/|^)([a-f0-9]+)\/?$/i) ||
+    withoutParams.match(/([a-f0-9]{20,32})/i);
 
   if (match && match[1]) {
     return match[1];
@@ -52,7 +68,7 @@ export function extractGistId(input: string): string {
  */
 function getHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = {
-    'Accept': 'application/vnd.github+json',
+    Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   };
   if (token && token.trim()) {
@@ -70,9 +86,10 @@ async function parseErrorMessage(res: Response): Promise<string> {
     if (data?.message) {
       if (res.status === 401) return 'Bad credentials or expired GitHub token.';
       if (res.status === 404) return 'Gist not found. Check the Gist ID.';
-      if (res.status === 403) return data.message.includes('rate limit')
-        ? 'GitHub API rate limit exceeded. Please try again later.'
-        : `Access forbidden: ${data.message}`;
+      if (res.status === 403)
+        return data.message.includes('rate limit')
+          ? 'GitHub API rate limit exceeded. Please try again later.'
+          : `Access forbidden: ${data.message}`;
       return data.message;
     }
   } catch {
@@ -124,13 +141,12 @@ export async function validateToken(token: string): Promise<TokenValidationResul
 }
 
 /**
- * Creates a new secret Gist with the provided JSON backup content.
+ * Creates a new secret Gist with the provided multi-file payload.
  */
 export async function createGist(
   token: string,
-  content: string,
-  description = GIST_DEFAULT_DESCRIPTION,
-  filename = GIST_DEFAULT_FILENAME
+  files: Record<string, string>,
+  description = GIST_DEFAULT_DESCRIPTION
 ): Promise<GistActionResult> {
   if (!token || !token.trim()) {
     return { success: false, error: 'GitHub token is required to create a Gist.' };
@@ -138,6 +154,11 @@ export async function createGist(
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  const filesPayload: Record<string, { content: string }> = {};
+  for (const [filename, content] of Object.entries(files)) {
+    filesPayload[filename] = { content };
+  }
 
   try {
     const res = await fetch('https://api.github.com/gists', {
@@ -149,11 +170,7 @@ export async function createGist(
       body: JSON.stringify({
         description,
         public: false, // Secret / unlisted gist
-        files: {
-          [filename]: {
-            content,
-          },
-        },
+        files: filesPayload,
       }),
       signal: controller.signal,
     });
@@ -181,7 +198,7 @@ export async function createGist(
 }
 
 /**
- * Fetches and extracts backup JSON content from an existing Gist.
+ * Fetches all files and contents from an existing Gist.
  */
 export async function fetchGist(gistId: string, token?: string): Promise<GistActionResult> {
   const cleanId = extractGistId(gistId);
@@ -206,38 +223,39 @@ export async function fetchGist(gistId: string, token?: string): Promise<GistAct
     }
 
     const data = await res.json();
-    const files = data.files || {};
+    const rawFiles = data.files || {};
+    const parsedFiles: Record<string, GistFileEntry> = {};
 
-    // Look for sync file in gist (primary filename, legacy codebook-sync.json, or first json file)
-    const targetFile = files[GIST_DEFAULT_FILENAME] || files['codebook-sync.json'] || Object.values(files).find((f: any) => f?.filename?.endsWith?.('.json'));
-    const resolvedFilename = targetFile?.filename || GIST_DEFAULT_FILENAME;
-
-    if (!targetFile) {
-      return { success: false, error: `Gist does not contain ${GIST_DEFAULT_FILENAME}.` };
-    }
-
-    let fileContent = targetFile.content;
-
-    // Handle large / truncated gist files by fetching raw_url
-    if (targetFile.truncated && targetFile.raw_url) {
-      const rawRes = await fetch(targetFile.raw_url, {
-        headers: token ? { 'Authorization': `Bearer ${token.trim()}` } : {},
-      });
-      if (rawRes.ok) {
-        fileContent = await rawRes.text();
+    // Read and resolve all files (handling truncated files if any)
+    for (const [filename, fileObj] of Object.entries<any>(rawFiles)) {
+      let content = fileObj.content;
+      if (fileObj.truncated && fileObj.raw_url) {
+        try {
+          const rawRes = await fetch(fileObj.raw_url, {
+            headers: token ? { Authorization: `Bearer ${token.trim()}` } : {},
+          });
+          if (rawRes.ok) {
+            content = await rawRes.text();
+          }
+        } catch (e) {
+          console.warn(`[sync] Failed to fetch truncated raw file ${filename}:`, e);
+        }
       }
-    }
 
-    if (typeof fileContent !== 'string') {
-      return { success: false, error: 'Could not read content from Gist file.' };
+      parsedFiles[filename] = {
+        filename,
+        content,
+        truncated: fileObj.truncated,
+        raw_url: fileObj.raw_url,
+        size: fileObj.size,
+      };
     }
 
     return {
       success: true,
       gistId: data.id,
       htmlUrl: data.html_url,
-      content: fileContent,
-      filename: resolvedFilename,
+      files: parsedFiles,
       updatedAt: data.updated_at,
     };
   } catch (err: any) {
@@ -250,13 +268,13 @@ export async function fetchGist(gistId: string, token?: string): Promise<GistAct
 }
 
 /**
- * Updates an existing Gist with new backup JSON content.
+ * Updates an existing Gist with new multi-file contents.
+ * Passing null for a filename in `files` removes that file from the Gist.
  */
 export async function updateGist(
   gistId: string,
   token: string,
-  content: string,
-  filename = GIST_DEFAULT_FILENAME,
+  files: Record<string, string | null>,
   description = GIST_DEFAULT_DESCRIPTION
 ): Promise<GistActionResult> {
   const cleanId = extractGistId(gistId);
@@ -270,6 +288,11 @@ export async function updateGist(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
+  const filesPayload: Record<string, { content: string } | null> = {};
+  for (const [filename, content] of Object.entries(files)) {
+    filesPayload[filename] = content === null ? null : { content };
+  }
+
   try {
     const res = await fetch(`https://api.github.com/gists/${cleanId}`, {
       method: 'PATCH',
@@ -279,11 +302,7 @@ export async function updateGist(
       },
       body: JSON.stringify({
         description,
-        files: {
-          [filename]: {
-            content,
-          },
-        },
+        files: filesPayload,
       }),
       signal: controller.signal,
     });
@@ -310,14 +329,6 @@ export async function updateGist(
   }
 }
 
-export interface DiscoveredGist {
-  gistId: string;
-  htmlUrl?: string;
-  filename: string;
-  updatedAt?: string;
-  description?: string;
-}
-
 /**
  * Exchanges a temporary OAuth authorization code with the Cloudflare Worker proxy for a GitHub access_token.
  */
@@ -340,7 +351,7 @@ export async function exchangeOAuthCode(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({ code: code.trim() }),
       signal: controller.signal,
@@ -371,11 +382,9 @@ export async function exchangeOAuthCode(
 
 /**
  * Searches the authenticated user's Gists to automatically locate an existing backup for this site instance.
- * Matches GIST_DEFAULT_FILENAME or legacy codebook-sync.json.
  */
 export async function findSiteGist(
-  token: string,
-  targetFilename = GIST_DEFAULT_FILENAME
+  token: string
 ): Promise<{ success: boolean; gist?: DiscoveredGist; error?: string }> {
   if (!token || !token.trim()) {
     return { success: false, error: 'GitHub token is required.' };
@@ -402,39 +411,42 @@ export async function findSiteGist(
       return { success: true, gist: undefined };
     }
 
-    // 1. Primary check: exact site filename match (e.g. `learn-rust-sync.json`)
+    // 1. Primary check: exact description match (e.g. `Learn Rust Progress & Settings Backup`)
     for (const g of gists) {
-      const files = g.files || {};
-      if (files[targetFilename]) {
+      if (g.description === GIST_DEFAULT_DESCRIPTION) {
         return {
           success: true,
           gist: {
             gistId: g.id,
             htmlUrl: g.html_url,
-            filename: targetFilename,
             updatedAt: g.updated_at,
             description: g.description,
+            filenames: Object.keys(g.files || {}),
           },
         };
       }
     }
 
-    // 2. Secondary fallback: check legacy `codebook-sync.json` if this site is the default "codebook"
-    if (targetFilename === 'codebook-sync.json') {
-      for (const g of gists) {
-        const files = g.files || {};
-        if (files['codebook-sync.json']) {
-          return {
-            success: true,
-            gist: {
-              gistId: g.id,
-              htmlUrl: g.html_url,
-              filename: 'codebook-sync.json',
-              updatedAt: g.updated_at,
-              description: g.description,
-            },
-          };
-        }
+    // 2. Secondary check: files matching modern layout or legacy site filename
+    for (const g of gists) {
+      const files = g.files || {};
+      if (
+        files[`_${SITE_SLUG}.json`] ||
+        files['lessons.json'] ||
+        files['metadata.json'] ||
+        files[`${SITE_SLUG}-sync.json`] ||
+        files['codebook-sync.json']
+      ) {
+        return {
+          success: true,
+          gist: {
+            gistId: g.id,
+            htmlUrl: g.html_url,
+            updatedAt: g.updated_at,
+            description: g.description,
+            filenames: Object.keys(files),
+          },
+        };
       }
     }
 

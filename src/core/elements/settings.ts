@@ -24,6 +24,13 @@ export const settingsElements = {
         gistAutosyncWrapper: document.getElementById('gist-autosync-wrapper') as HTMLElement,
         gistAutosyncToggle: document.getElementById('gist-autosync-toggle') as HTMLInputElement,
         gistStatusMsg: document.getElementById('gist-status-msg') as HTMLElement,
+        gistManualToggleBtn: document.getElementById('gist-manual-toggle-btn') as HTMLButtonElement,
+        gistManualChevron: document.getElementById('gist-manual-chevron') as HTMLElement,
+        gistManualToggleLabel: document.getElementById('gist-manual-toggle-label') as HTMLElement,
+        gistManualView: document.getElementById('gist-manual-view') as HTMLElement,
+        gistManualToken: document.getElementById('gist-manual-token') as HTMLInputElement,
+        gistManualId: document.getElementById('gist-manual-id') as HTMLInputElement,
+        gistManualConnectBtn: document.getElementById('gist-manual-connect-btn') as HTMLButtonElement,
 
         exportBackupBtn: document.getElementById('export-backup-btn') as HTMLButtonElement,
         exportBackupIcon: document.getElementById('export-backup-icon') as HTMLElement,

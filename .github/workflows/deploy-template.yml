@@ -11,6 +11,7 @@ concurrency:
 
 jobs:
   publish-template:
+    if: github.repository == 'wrongfirst/codebook'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -32,6 +33,7 @@ jobs:
           rm -f README.md
           rm -rf .workspace
           rm -f src/TODO.md
+          rm -f .github/workflows/deploy-template.yml
           find . -name ".DS_Store" -type f -delete 2>/dev/null || true
           git add -A
           if ! git diff-index --quiet HEAD --; then

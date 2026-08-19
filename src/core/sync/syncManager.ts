@@ -2,7 +2,7 @@
 import { GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_WORKER_URL } from './oauthConfig';
 import { store } from '../store';
 import { createGist, fetchGist, updateGist, exchangeOAuthCode, findSiteGist, GistActionResult } from './gistClient';
-import { buildGistFiles, parseAndMergeGistFiles } from '../backup';
+import { buildGistFiles, parseAndMergeGistFiles, BACKUP_FILENAMES } from '../backup';
 import { showPopup } from '../../ui/popup';
 
 export type SyncStatusType = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
@@ -75,8 +75,22 @@ export async function pushToGist(): Promise<GistActionResult> {
   setSyncStatus('syncing');
 
   try {
-    const files = await buildGistFiles(store.getState());
-    const res = await updateGist(gistSyncSettings.gistId, gistSyncSettings.token, files);
+    const existingGist = await fetchGist(gistSyncSettings.gistId, gistSyncSettings.token);
+    const newFiles = await buildGistFiles(store.getState());
+    const validFileSet = new Set(Object.values(BACKUP_FILENAMES));
+
+    const filesToUpdate: Record<string, string | null> = { ...newFiles };
+
+    // Mark any obsolete files currently on the Gist for permanent deletion
+    if (existingGist.success && existingGist.files) {
+      for (const existingFilename of Object.keys(existingGist.files)) {
+        if (!validFileSet.has(existingFilename as any)) {
+          filesToUpdate[existingFilename] = null;
+        }
+      }
+    }
+
+    const res = await updateGist(gistSyncSettings.gistId, gistSyncSettings.token, filesToUpdate);
 
     if (res.success) {
       const now = Date.now();

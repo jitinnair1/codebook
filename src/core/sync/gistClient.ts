@@ -427,16 +427,10 @@ export async function findSiteGist(
       }
     }
 
-    // 2. Secondary check: files matching modern layout or legacy site filename
+    // 2. Secondary check: files matching modern layout
     for (const g of gists) {
       const files = g.files || {};
-      if (
-        files[`_${SITE_SLUG}.json`] ||
-        files['lessons.json'] ||
-        files['metadata.json'] ||
-        files[`${SITE_SLUG}-sync.json`] ||
-        files['codebook-sync.json']
-      ) {
+      if (files[`_${SITE_SLUG}.json`] || files['lessons.json']) {
         return {
           success: true,
           gist: {

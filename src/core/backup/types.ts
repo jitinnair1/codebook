@@ -1,5 +1,5 @@
 // src/core/backup/types.ts
-import { AppState, ChatConversation, ChatSettings, GistSyncSettings } from '../types';
+import { AppState, ChatSettings, GistSyncSettings } from '../types';
 
 export interface MetadataPayload {
   version: number;
@@ -9,20 +9,49 @@ export interface MetadataPayload {
   updatedAt: number;
 }
 
+export interface LessonProgressItem {
+  slug: string;
+  completed: boolean;
+  completedLanguages?: string[];
+  code?: Record<string, string>;
+  updatedAt?: number;
+}
+
 export interface LessonsPayload {
-  currentExerciseId: string;
-  currentLanguageId: string;
-  completedIds: string[];
-  userCode: Record<string, string>;
-  vimMode: boolean;
+  version: number;
+  activeLessonSlug: string;
+  activeLanguageId: string;
+  lessons: LessonProgressItem[];
+}
+
+export interface SavedChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+}
+
+export interface SavedConversation {
+  id: string;
+  lessonSlug: string;
+  languageId: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: SavedChatMessage[];
 }
 
 export interface ConversationsPayload {
-  chatConversations: Record<string, ChatConversation[]>;
-  activeConversationId: Record<string, string>;
+  version: number;
+  conversations: SavedConversation[];
+}
+
+export interface EditorSettingsPayload {
+  vimMode: boolean;
 }
 
 export interface SettingsPayload {
+  editor: EditorSettingsPayload;
   chatSettings: ChatSettings;
   gistSyncSettings: GistSyncSettings;
 }

@@ -1,5 +1,8 @@
 import { Chapter } from '../core/types';
 import { ICONS } from './icons';
+import { store } from '../core/store';
+
+let isListenerBound = false;
 
 export function renderProgressBar(
     container: HTMLElement | null,
@@ -8,6 +11,19 @@ export function renderProgressBar(
     completedIds: string[]
 ) {
     if (!container) return;
+
+    if (!isListenerBound) {
+        isListenerBound = true;
+        container.addEventListener('click', (e) => {
+            const item = (e.target as HTMLElement).closest<HTMLElement>('.progress-step');
+            if (!item) return;
+            const exId = item.getAttribute('data-exercise-id');
+            if (exId) {
+                window.location.hash = '#' + exId;
+                store.getState().setCurrent(exId);
+            }
+        });
+    }
 
     const currentChapter = curriculum.find(c => c.exercises.some(e => e.id === currentExerciseId));
     if (currentChapter) {
@@ -46,7 +62,7 @@ export function renderProgressBar(
             }
 
             return `
-                <div class="relative flex items-center group cursor-pointer" onclick="location.hash='#${e.id}'" title="${e.title}">
+                <div class="progress-step relative flex items-center group cursor-pointer" data-exercise-id="${e.id}" title="${e.title}">
                     <div class="w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300 z-10 ${circleClass}">
                         ${content}
                     </div>
@@ -60,3 +76,4 @@ export function renderProgressBar(
         }).join('');
     }
 }
+

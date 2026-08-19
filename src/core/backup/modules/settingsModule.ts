@@ -44,6 +44,9 @@ export async function exportSettings(
   }
 
   return {
+    editor: {
+      vimMode: !!state.vimMode,
+    },
     chatSettings,
     gistSyncSettings,
   };
@@ -54,6 +57,11 @@ export function sanitizeSettings(raw: unknown, current: AppState): Partial<AppSt
     return {};
   }
   const payload = raw as Partial<SettingsPayload>;
+
+  let restoredVimMode = current.vimMode;
+  if (payload.editor && typeof payload.editor === 'object' && typeof payload.editor.vimMode === 'boolean') {
+    restoredVimMode = payload.editor.vimMode;
+  }
 
   let restoredChatSettings = current.chatSettings || defaultChatSettings;
   if (payload.chatSettings && typeof payload.chatSettings === 'object') {
@@ -94,6 +102,7 @@ export function sanitizeSettings(raw: unknown, current: AppState): Partial<AppSt
   }
 
   return {
+    vimMode: restoredVimMode,
     chatSettings: restoredChatSettings,
     gistSyncSettings: restoredGistSyncSettings,
   };
@@ -129,7 +138,13 @@ export function mergeSettings(local: AppState, remote: SettingsPayload): Partial
     autoSync: typeof remoteSync.autoSync === 'boolean' ? remoteSync.autoSync : localSync.autoSync,
   };
 
+  const remoteVimMode =
+    remote.editor && typeof remote.editor.vimMode === 'boolean'
+      ? remote.editor.vimMode
+      : local.vimMode;
+
   return {
+    vimMode: remoteVimMode,
     chatSettings: mergedChatSettings,
     gistSyncSettings: mergedSyncSettings,
   };

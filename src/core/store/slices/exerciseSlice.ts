@@ -6,7 +6,7 @@ import { AppState, ExerciseSlice } from '../../types';
 import { scheduleAutoPush, triggerImmediatePush } from '../../sync/syncManager';
 
 export const createExerciseSlice: StateCreator<AppState, [], [], ExerciseSlice> = (set, get) => ({
-  currentExerciseId: exercises[0]?.id || '1.1',
+  currentExerciseId: exercises[0]?.id || '',
   currentLanguageId: defaultLanguageId,
   completedIds: [],
   userCode: {},

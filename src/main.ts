@@ -1,7 +1,7 @@
 import './input.css';
 import { store, decryptStoredSettings } from './core/store';
 import { initStartupSync } from './core/sync/syncManager';
-import { exercises, curriculum } from './exercises/exercise-registry';
+import { exercises, curriculum, getExerciseDisplayNumber } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
 import { loadExerciseCode, setEditorCode, updateEditorTheme } from './core/editor';
 import { parseMarkdown, highlightStaticBlocks, escapeHtml } from './core/markdown';
@@ -102,7 +102,9 @@ function render() {
     if (isInitial || isExerciseChanged || isLanguageChanged) {
         //render description
         const descHtml = parseMarkdown(currentEx.description);
-        const titleHtml = `<h1 class="text-3xl font-bold mb-6 text-fg-primary">${escapeHtml(currentEx.id)} ${escapeHtml(currentEx.title)}</h1>`;
+        const displayNum = getExerciseDisplayNumber(currentEx.id);
+        const headerTitle = displayNum ? `${displayNum} ${currentEx.title}` : currentEx.title;
+        const titleHtml = `<h1 class="text-3xl font-bold mb-6 text-fg-primary">${escapeHtml(headerTitle)}</h1>`;
         const fullContent = titleHtml + descHtml;
 
         if (elements.description.desktop) elements.description.desktop.innerHTML = fullContent;

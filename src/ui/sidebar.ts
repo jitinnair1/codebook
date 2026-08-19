@@ -33,17 +33,18 @@ export function renderSidebar(
         });
     }
 
-    sidebarEl.innerHTML = curriculum.map(chapter => {
+    sidebarEl.innerHTML = curriculum.map((chapter, chIdx) => {
         const chapterHeader = `<div class="px-8 py-1 pb-0 text-[10px] font-bold text-fg-muted uppercase">${chapter.title}</div>`;
 
-        const chapterExercises = chapter.exercises.map(e => {
+        const chapterExercises = chapter.exercises.map((e, exIdx) => {
             const isCompleted = completedIds.includes(e.id);
             const active = e.id === currentExerciseId ? 'bg-bg-surface text-fg-primary border-l-2 border-brand' : 'text-fg-muted hover:text-fg-primary';
             const completed = isCompleted ? 'opacity-40' : '';
+            const displayNum = `${chIdx + 1}.${exIdx + 1}`;
 
             return `<div class="nav-item cursor-pointer py-2 pl-8 pr-4 text-sm flex justify-between items-center transition-colors ${active} ${completed}"
                         data-exercise-id="${e.id}">
-                      <span>${e.id} ${e.title}</span>
+                      <span>${displayNum} ${e.title}</span>
                       ${isCompleted ? ICONS.CHECK : ''}
                     </div>`;
         }).join('');

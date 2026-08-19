@@ -56,7 +56,7 @@ export function parseAndMergeGistFiles(
   }
 
   let metadata: Partial<MetadataPayload> | undefined;
-  const metaFile = files[BACKUP_FILENAMES.METADATA] || files['metadata.json'];
+  const metaFile = files[BACKUP_FILENAMES.METADATA];
   if (metaFile?.content) {
     try {
       metadata = JSON.parse(metaFile.content);
@@ -158,9 +158,9 @@ export function parseManualImport(
       };
     }
 
-    const lessonsData = sanitizeLessons(parsed.lessons || parsed.data, currentState);
-    const conversationsData = sanitizeConversations(parsed.conversations || parsed.data, currentState);
-    const settingsData = sanitizeSettings(parsed.settings || parsed.data, currentState);
+    const lessonsData = sanitizeLessons(parsed.lessons, currentState);
+    const conversationsData = sanitizeConversations(parsed.conversations, currentState);
+    const settingsData = sanitizeSettings(parsed.settings, currentState);
 
     const combined: Partial<AppState> = {
       ...lessonsData,

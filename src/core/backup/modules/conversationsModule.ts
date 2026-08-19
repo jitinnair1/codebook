@@ -1,27 +1,99 @@
-// src/core/backup/modules/conversationsModule.ts
-import { AppState, ChatConversation } from '../../types';
-import { BackupModule, ConversationsPayload } from '../types';
+import { AppState, ChatConversation, ChatMessage } from '../../types';
+import { BackupModule, ConversationsPayload, SavedConversation } from '../types';
+import { isValidExerciseId } from '../../../exercises/exercise-registry';
 
 export function exportConversations(state: AppState): ConversationsPayload {
+  const conversations: SavedConversation[] = [];
+
+  for (const [exId, convList] of Object.entries(state.chatConversations || {})) {
+    if (!Array.isArray(convList)) continue;
+    for (const c of convList) {
+      if (!c) continue;
+      const lessonSlug = String(c.exerciseId || exId || '').trim();
+      if (!isValidExerciseId(lessonSlug)) continue;
+
+      conversations.push({
+        id: c.id,
+        lessonSlug,
+        languageId: c.languageId || '',
+        title: c.title || 'Chat',
+        createdAt: c.createdAt || Date.now(),
+        updatedAt: c.updatedAt || Date.now(),
+        messages: Array.isArray(c.messages)
+          ? c.messages.map((m) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              timestamp: m.timestamp,
+            }))
+          : [],
+      });
+    }
+  }
+
+  // Sort conversations by updatedAt ascending for stable, readable JSON
+  conversations.sort((a, b) => a.createdAt - b.createdAt);
+
   return {
-    chatConversations: state.chatConversations ? { ...state.chatConversations } : {},
-    activeConversationId: state.activeConversationId ? { ...state.activeConversationId } : {},
+    version: 1,
+    conversations,
   };
 }
 
+function extractRawConversationList(raw: unknown): any[] {
+  if (!raw || typeof raw !== 'object') return [];
+
+  if (Array.isArray((raw as any).conversations)) {
+    return (raw as any).conversations;
+  }
+  return [];
+}
+
 export function sanitizeConversations(raw: unknown, current: AppState): Partial<AppState> {
-  if (!raw || typeof raw !== 'object') {
+  const rawList = extractRawConversationList(raw);
+  if (rawList.length === 0 && (!raw || typeof raw !== 'object' || !(raw as any).conversations)) {
     return {};
   }
-  const payload = raw as Partial<ConversationsPayload>;
 
-  let restoredConvs = current.chatConversations;
-  let restoredActive = current.activeConversationId;
+  const restoredConvs: Record<string, ChatConversation[]> = {};
+  const restoredActive: Record<string, string> = { ...(current.activeConversationId || {}) };
 
-  if (payload.chatConversations && typeof payload.chatConversations === 'object') {
-    restoredConvs = payload.chatConversations;
-    if (payload.activeConversationId && typeof payload.activeConversationId === 'object') {
-      restoredActive = payload.activeConversationId;
+  for (const item of rawList) {
+    if (!item || typeof item !== 'object') continue;
+    const lessonSlug = String(item.lessonSlug || '').trim();
+    if (!isValidExerciseId(lessonSlug)) continue;
+
+    const conv: ChatConversation = {
+      id: String(item.id || `conv-${Date.now()}`),
+      exerciseId: lessonSlug,
+      languageId: String(item.languageId || ''),
+      title: String(item.title || 'Chat'),
+      createdAt: typeof item.createdAt === 'number' ? item.createdAt : Date.now(),
+      updatedAt: typeof item.updatedAt === 'number' ? item.updatedAt : Date.now(),
+      messages: Array.isArray(item.messages)
+        ? item.messages.map((m: any) => ({
+            id: String(m.id || `msg-${Date.now()}`),
+            role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
+            content: String(m.content || ''),
+            timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
+          }))
+        : [],
+    };
+
+    if (!restoredConvs[lessonSlug]) {
+      restoredConvs[lessonSlug] = [];
+    }
+    restoredConvs[lessonSlug].push(conv);
+  }
+
+  // Ensure active conversation pointer for each lesson
+  for (const [lessonSlug, convs] of Object.entries(restoredConvs)) {
+    if (convs.length > 0) {
+      const mostRecent = [...convs].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      const existingActive = restoredActive[lessonSlug];
+      if (!existingActive || !convs.some((c) => c.id === existingActive)) {
+        restoredActive[lessonSlug] = mostRecent.id;
+      }
     }
   }
 
@@ -31,31 +103,73 @@ export function sanitizeConversations(raw: unknown, current: AppState): Partial<
   };
 }
 
-export function mergeConversations(local: AppState, remote: ConversationsPayload): Partial<AppState> {
-  const mergedConversations: Record<string, ChatConversation[]> = {
-    ...(remote.chatConversations || {}),
-  };
+export function mergeConversations(local: AppState, remote: ConversationsPayload | any): Partial<AppState> {
+  const remoteList = extractRawConversationList(remote);
+  const localList: ChatConversation[] = Object.values(local.chatConversations || {}).flat();
 
-  if (local.chatConversations) {
-    for (const [exId, convs] of Object.entries(local.chatConversations)) {
-      if (!mergedConversations[exId]) {
-        mergedConversations[exId] = convs;
-      } else {
-        const existingIds = new Set(mergedConversations[exId].map((c) => c.id));
-        const nonDuplicateLocal = convs.filter((c) => !existingIds.has(c.id));
-        mergedConversations[exId] = [...mergedConversations[exId], ...nonDuplicateLocal];
+  // Index all conversations by ID
+  const convMap = new Map<string, ChatConversation>();
+
+  for (const loc of localList) {
+    if (loc?.id && isValidExerciseId(loc.exerciseId)) {
+      convMap.set(loc.id, { ...loc });
+    }
+  }
+
+  for (const rem of remoteList) {
+    if (!rem || typeof rem !== 'object') continue;
+    const remId = String(rem.id || '').trim();
+    const lessonSlug = String(rem.lessonSlug || '').trim();
+    if (!remId || !isValidExerciseId(lessonSlug)) continue;
+
+    const existing = convMap.get(remId);
+    if (!existing) {
+      convMap.set(remId, {
+        id: remId,
+        exerciseId: lessonSlug,
+        languageId: String(rem.languageId || ''),
+        title: String(rem.title || 'Chat'),
+        createdAt: typeof rem.createdAt === 'number' ? rem.createdAt : Date.now(),
+        updatedAt: typeof rem.updatedAt === 'number' ? rem.updatedAt : Date.now(),
+        messages: Array.isArray(rem.messages) ? rem.messages : [],
+      });
+    } else {
+      // Merge messages without duplicating by ID
+      const existingMsgIds = new Set(existing.messages.map((m) => m.id));
+      const newMessages: ChatMessage[] = Array.isArray(rem.messages)
+        ? rem.messages.filter((m: any) => !existingMsgIds.has(m.id))
+        : [];
+
+      existing.messages = [...existing.messages, ...newMessages];
+      existing.updatedAt = Math.max(existing.updatedAt, rem.updatedAt || 0);
+      if (rem.title && !existing.title) existing.title = rem.title;
+    }
+  }
+
+  // Regroup merged conversations by lessonSlug
+  const mergedConvs: Record<string, ChatConversation[]> = {};
+  const mergedActive: Record<string, string> = { ...(local.activeConversationId || {}) };
+
+  for (const conv of convMap.values()) {
+    if (!mergedConvs[conv.exerciseId]) {
+      mergedConvs[conv.exerciseId] = [];
+    }
+    mergedConvs[conv.exerciseId].push(conv);
+  }
+
+  for (const [lessonSlug, convs] of Object.entries(mergedConvs)) {
+    if (convs.length > 0) {
+      const mostRecent = [...convs].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      const existingActive = mergedActive[lessonSlug];
+      if (!existingActive || !convs.some((c) => c.id === existingActive)) {
+        mergedActive[lessonSlug] = mostRecent.id;
       }
     }
   }
 
-  const mergedActiveConv: Record<string, string> = {
-    ...(remote.activeConversationId || {}),
-    ...(local.activeConversationId || {}),
-  };
-
   return {
-    chatConversations: mergedConversations,
-    activeConversationId: mergedActiveConv,
+    chatConversations: mergedConvs,
+    activeConversationId: mergedActive,
   };
 }
 

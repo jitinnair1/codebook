@@ -26,9 +26,18 @@ export function buildSystemPrompt(): PromptContext {
   const variant = currentEx ? getExerciseVariant(currentEx, currentLanguageId) : null;
 
   const starterCode = variant?.initialCode || '';
-  const testCode = variant?.testCode || '';
+  const rawTestCode = variant?.testCode || '';
+  const activeTab = store.getState().activeEditorTab || 'code';
+
+  const userCode = activeTab === 'code'
+    ? (getCode() || starterCode)
+    : (store.getState().getUserCode(currentExerciseId, currentLanguageId) || starterCode);
+
+  const testCode = activeTab === 'test'
+    ? (getCode() || rawTestCode)
+    : (store.getState().getUserTestCode(currentExerciseId, currentLanguageId) ?? rawTestCode);
+
   const validatorCode = variant?.validatorCode || '';
-  const userCode = getCode() || starterCode;
   const lintMessages = getFormattedLintMessages();
 
   // Retrieve current console output, omitting default placeholder text

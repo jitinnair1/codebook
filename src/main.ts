@@ -25,6 +25,7 @@ import { initShortcuts } from './ui/shortcuts';
 import { initResetProgress } from './ui/resetProgress';
 import { initSettings } from './ui/settings';
 import { initChatPanel } from './ui/chatPanel';
+import { initEditorTabs, renderEditorTabs } from './ui/editorTabs';
 import { renderLanguageSelector } from './ui/languageSelector';
 import { getLanguageExtension, prewarmBackgroundLanguages, loadLanguageRunner } from './languages/language-registry';
 
@@ -37,6 +38,7 @@ initShortcuts();
 initSettings();
 initChatPanel();
 initResetProgress();
+initEditorTabs();
 renderFooter();
 
 //load speedrun modal only in dev environments
@@ -72,7 +74,10 @@ let lastRenderedLanguageId: string | null = null;
 let lastRenderedCompletedIds: string[] = [];
 
 function render() {
-    const { currentExerciseId, currentLanguageId, completedIds } = store.getState();
+    const { currentExerciseId, currentLanguageId, completedIds, activeEditorTab } = store.getState();
+
+    // Always update editor tabs
+    renderEditorTabs();
 
     const prevExerciseId = lastRenderedExerciseId;
     const prevLanguageId = lastRenderedLanguageId;
@@ -117,8 +122,12 @@ function render() {
         renderLanguageSelector(elements.languageSelectorContainer, currentEx);
         const languageExtension = getLanguageExtension(currentLanguageId);
 
-        //initialize editor with user code (loadExerciseCode automatically saves prior context)
-        const editorText = store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode;
+        //initialize editor with active tab code (loadExerciseCode automatically saves prior context)
+        const currentTab = activeEditorTab || 'code';
+        const editorText = currentTab === 'test'
+            ? (store.getState().getUserTestCode(currentExerciseId, currentLanguageId) ?? exerciseVariant.testCode)
+            : (store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode);
+
         loadExerciseCode(currentExerciseId, currentLanguageId, editorText, languageExtension, () => {
             showPopup('Saved!');
         });
@@ -144,13 +153,21 @@ elements.runBtn.addEventListener('click', () => runner.run());
 //reset button
 if (elements.resetBtn) {
     resetEditorText(elements.resetBtn, ICONS.TRASH, () => {
-        const { currentExerciseId, currentLanguageId } = store.getState();
+        const { currentExerciseId, currentLanguageId, activeEditorTab } = store.getState();
         const currentEx = exercises.find(e => e.id === currentExerciseId);
         if (!currentEx) return;
         const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
-        setEditorCode(exerciseVariant.initialCode);
-        store.getState().saveUserCode(currentExerciseId, currentLanguageId, exerciseVariant.initialCode);
-        showPopup('Reset to starter code');
+
+        if (activeEditorTab === 'test') {
+            setEditorCode(exerciseVariant.testCode);
+            store.getState().saveUserTestCode(currentExerciseId, currentLanguageId, exerciseVariant.testCode);
+            renderEditorTabs();
+            showPopup('Reset to starter tests');
+        } else {
+            setEditorCode(exerciseVariant.initialCode);
+            store.getState().saveUserCode(currentExerciseId, currentLanguageId, exerciseVariant.initialCode);
+            showPopup('Reset to starter code');
+        }
     });
 }
 

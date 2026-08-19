@@ -1,7 +1,7 @@
 import { store } from './store';
 import { exercises } from '../exercises/exercise-registry';
 import { getExerciseVariant } from './types';
-import { getCode } from './editor';
+import { flushAutoSave } from './editor';
 import { status } from '../ui/status';
 import { confetti } from '../ui/confetti';
 import { showPopup } from '../ui/popup';
@@ -75,12 +75,14 @@ class Orchestrator {
         elements.console.textContent = "";
 
         try {
-            //get code
-            const userCode = getCode();
-            store.getState().saveUserCode(currentExerciseId, currentLanguageId, userCode);
+            //flush pending edits
+            flushAutoSave();
+
+            //get latest user code and custom or default test code
+            const userCode = store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode || "";
+            const finalTestCode = store.getState().getUserTestCode(currentExerciseId, currentLanguageId) ?? exerciseVariant.testCode ?? "";
 
             //run via adapter
-            const finalTestCode = exerciseVariant.testCode || "";
             const result = await activeRunner.run(userCode, finalTestCode);
 
             //handle result

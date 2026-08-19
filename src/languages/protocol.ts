@@ -20,6 +20,9 @@ export interface WorkerLintMessage {
   type: 'LINT';
   id: string;
   code: string;
+  userCode?: string;
+  testCode?: string;
+  activeTab?: 'code' | 'test';
 }
 
 export interface WorkerResetMessage {

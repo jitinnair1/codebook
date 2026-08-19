@@ -27,6 +27,10 @@ export const layoutElements = {
         problem: document.getElementById('tab-problem') as HTMLButtonElement,
         code: document.getElementById('tab-code') as HTMLButtonElement,
     },
+    editorTabs: {
+        container: document.getElementById('editor-tabs-container') as HTMLElement,
+        wrapper: document.getElementById('editor-tabs-wrapper') as HTMLElement,
+    },
 
     // Resize handles and panes
     resize: {

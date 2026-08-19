@@ -75,6 +75,7 @@ export function buildSyncPayload(state: AppState): string {
       currentLanguageId: state.currentLanguageId,
       completedIds: state.completedIds,
       userCode: state.userCode,
+      userTestCode: state.userTestCode,
       vimMode: state.vimMode,
       chatSettings: sanitizedChatSettings,
       chatConversations: state.chatConversations,
@@ -120,7 +121,13 @@ export function mergeSyncState(local: AppState, remoteData: Partial<AppState>): 
     ...(local.userCode || {}),
   };
 
-  // 3. Merge chat conversations (combine conversations per exercise without duplicating)
+  // 3. Merge user test code (keep local non-empty code, supplement missing keys from remote)
+  const mergedUserTestCode: Record<string, string> = {
+    ...(remoteData.userTestCode || {}),
+    ...(local.userTestCode || {}),
+  };
+
+  // 4. Merge chat conversations (combine conversations per exercise without duplicating)
   const mergedConversations: Record<string, ChatConversation[]> = {
     ...(remoteData.chatConversations || {}),
   };
@@ -137,7 +144,7 @@ export function mergeSyncState(local: AppState, remoteData: Partial<AppState>): 
     }
   }
 
-  // 4. Merge active conversation pointers
+  // 5. Merge active conversation pointers
   const mergedActiveConv: Record<string, string> = {
     ...(remoteData.activeConversationId || {}),
     ...(local.activeConversationId || {}),
@@ -146,6 +153,7 @@ export function mergeSyncState(local: AppState, remoteData: Partial<AppState>): 
   return {
     completedIds: mergedCompleted,
     userCode: mergedUserCode,
+    userTestCode: mergedUserTestCode,
     chatConversations: mergedConversations,
     activeConversationId: mergedActiveConv,
     vimMode: typeof remoteData.vimMode === 'boolean' ? remoteData.vimMode : local.vimMode,

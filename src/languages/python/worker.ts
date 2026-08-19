@@ -1,9 +1,10 @@
 import { loadPyodide } from 'pyodide';
-import { createWorkerHandler } from '../base-worker';
+import { createWorkerHandler, LintContext } from '../base-worker';
 import type { DiagnosticItem } from '../types';
 import harness from './harness.py?raw';
 import { initRuffLinter, lintWithRuff } from './ruff-linter';
 import { initMypy, isMypyReady, checkWithMypy } from './mypy-checker';
+import { combineSourceWithSpans, mapCombinedLineToUser } from '../harness-helper';
 
 let pyodideInstance: any = null;
 let pyodideInitPromise: Promise<any> | null = null;
@@ -136,43 +137,73 @@ createWorkerHandler({
     }
   },
 
-  async lint(code: string): Promise<DiagnosticItem[]> {
+  async lint(code: string, context?: LintContext): Promise<DiagnosticItem[]> {
     if (!code.trim()) return [];
+
+    const isTestTab = context?.activeTab === 'test';
+    const userCode = isTestTab ? (context?.userCode || '') : code;
+    const testCode = isTestTab ? code : (context?.testCode || '');
+
+    // For test tab, combine harness + userCode + testCode so symbols like fizzbuzz and Tests are in scope
+    let targetCode = code;
+    let harnessLineCount = 0;
+    let userLineCount = 0;
+
+    if (isTestTab) {
+      const spanInfo = combineSourceWithSpans(harness, userCode, testCode, '\n');
+      targetCode = spanInfo.combinedCode;
+      harnessLineCount = spanInfo.harnessSpan.lineCount;
+      userLineCount = spanInfo.userSpan.lineCount;
+    }
 
     // Step 1: Run ultra-fast Ruff WASM linter
     let ruffDiagnostics: DiagnosticItem[] = [];
     try {
-      ruffDiagnostics = await lintWithRuff(code);
+      ruffDiagnostics = await lintWithRuff(targetCode);
     } catch (err) {
       console.warn('[Python Worker Ruff Lint Error]:', err);
     }
 
-    // If Ruff detects fatal syntax/parse errors (E999 or SyntaxError), return immediately
+    // If Ruff detects fatal syntax/parse errors (E999 or SyntaxError), filter and return immediately
     const hasSyntaxError = ruffDiagnostics.some(
       d => d.severity === 'error' && (d.message.includes('SyntaxError') || d.message.includes('[E9'))
     );
-    if (hasSyntaxError) {
-      return ruffDiagnostics;
-    }
 
-    // Step 2: Run Mypy static type checking if Pyodide is ready
     let mypyDiagnostics: DiagnosticItem[] = [];
-    if (pyodideInstance && isMypyReady()) {
+    if (!hasSyntaxError && pyodideInstance && isMypyReady()) {
       try {
-        mypyDiagnostics = await checkWithMypy(pyodideInstance, code);
+        mypyDiagnostics = await checkWithMypy(pyodideInstance, targetCode);
       } catch (err) {
         console.warn('[Python Worker Mypy Lint Error]:', err);
       }
     }
 
-    // Step 3: Combine and sort diagnostics by line and column
     const combined = [...ruffDiagnostics, ...mypyDiagnostics];
-    combined.sort((a, b) => {
+    const results: DiagnosticItem[] = [];
+
+    for (const d of combined) {
+      if (isTestTab) {
+        const mapping = mapCombinedLineToUser(d.line || 1, harnessLineCount, userLineCount);
+        if (mapping.isTestCode) {
+          results.push({
+            ...d,
+            line: mapping.line,
+            from: undefined,
+            to: undefined,
+          });
+        }
+      } else {
+        results.push(d);
+      }
+    }
+
+    // Step 3: Sort diagnostics by line and column
+    results.sort((a, b) => {
       const lineDiff = (a.line || 1) - (b.line || 1);
       if (lineDiff !== 0) return lineDiff;
       return (a.column || 1) - (b.column || 1);
     });
 
-    return combined;
+    return results;
   }
 });

@@ -8,6 +8,8 @@ import { vim } from '@replit/codemirror-vim';
 import { themeCompartment, getTheme } from '../ui/theme';
 import { showPopup } from '../ui/popup';
 import { store } from './store';
+import { exercises } from '../exercises/exercise-registry';
+import { getExerciseVariant } from './types';
 
 export interface EditorDiagnostic {
     message: string;
@@ -27,6 +29,7 @@ let onSaveCallback: (() => void) | undefined;
 let isProgrammaticChange = false;
 let activeExerciseId: string | null = null;
 let activeLanguageId: string | null = null;
+let activeEditorTab: 'code' | 'test' = 'code';
 
 //JN: since Codemirror's editor state and config are immutable by design, we use compartments to update
 //the language syntax and theme. Compartments are dynamic slots for extensions (like syntax highlighting 
@@ -128,8 +131,8 @@ export function getFormattedLintMessages(): string {
         .join('\n');
 }
 
-// Immediately flushes pending edits to the store for the active exercise/language
-export function flushAutoSave(targetExerciseId?: string, targetLanguageId?: string) {
+// Immediately flushes pending edits to the store for the active exercise/language and tab
+export function flushAutoSave(targetExerciseId?: string, targetLanguageId?: string, targetTab?: 'code' | 'test') {
     if (autoSaveTimeout) {
         clearTimeout(autoSaveTimeout);
         autoSaveTimeout = null;
@@ -138,8 +141,14 @@ export function flushAutoSave(targetExerciseId?: string, targetLanguageId?: stri
         const { currentExerciseId, currentLanguageId } = store.getState();
         const exId = targetExerciseId ?? activeExerciseId ?? currentExerciseId;
         const langId = targetLanguageId ?? activeLanguageId ?? currentLanguageId;
+        const tab = targetTab ?? activeEditorTab;
         if (exId && langId) {
-            store.getState().saveUserCode(exId, langId, view.state.doc.toString());
+            const docContent = view.state.doc.toString();
+            if (tab === 'test') {
+                store.getState().saveUserTestCode(exId, langId, docContent);
+            } else {
+                store.getState().saveUserCode(exId, langId, docContent);
+            }
         }
     }
 }
@@ -152,6 +161,32 @@ function scheduleAutoSave() {
         autoSaveTimeout = null;
         flushAutoSave();
     }, 300);
+}
+
+export function getActiveEditorTab(): 'code' | 'test' {
+    return activeEditorTab;
+}
+
+export function switchEditorTab(targetTab: 'code' | 'test') {
+    if (targetTab === activeEditorTab) return;
+
+    // Flush current buffer changes before switching
+    flushAutoSave();
+
+    activeEditorTab = targetTab;
+    store.getState().setActiveEditorTab(targetTab);
+
+    const { currentExerciseId, currentLanguageId } = store.getState();
+    const exId = activeExerciseId ?? currentExerciseId;
+    const langId = activeLanguageId ?? currentLanguageId;
+    const currentEx = exercises.find(e => e.id === exId);
+    const variant = currentEx ? getExerciseVariant(currentEx, langId) : null;
+
+    const nextText = targetTab === 'test'
+        ? (store.getState().getUserTestCode(exId, langId) ?? variant?.testCode ?? '')
+        : (store.getState().getUserCode(exId, langId) ?? variant?.initialCode ?? '');
+
+    setDocText(nextText);
 }
 
 // Loads code and syntax for an exercise, automatically flushing prior edits
@@ -168,15 +203,22 @@ export function loadExerciseCode(
     if (autoSaveTimeout && activeExerciseId && activeLanguageId && (activeExerciseId !== exerciseId || activeLanguageId !== languageId)) {
         const prevEx = activeExerciseId;
         const prevLang = activeLanguageId;
+        const prevTab = activeEditorTab;
         clearTimeout(autoSaveTimeout);
         autoSaveTimeout = null;
         if (view) {
-            store.getState().saveUserCode(prevEx, prevLang, view.state.doc.toString());
+            const docContent = view.state.doc.toString();
+            if (prevTab === 'test') {
+                store.getState().saveUserTestCode(prevEx, prevLang, docContent);
+            } else {
+                store.getState().saveUserCode(prevEx, prevLang, docContent);
+            }
         }
     }
 
     activeExerciseId = exerciseId;
     activeLanguageId = languageId;
+    activeEditorTab = store.getState().activeEditorTab || 'code';
 
     const editorEl = document.getElementById('editor');
     if (!editorEl) return;

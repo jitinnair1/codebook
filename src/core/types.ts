@@ -44,7 +44,7 @@ export interface CodeRunner {
     getInitError?(): string | null;
     subscribeStatus?(listener: (status: RunnerStatus, error?: string | null) => void): () => void;
     run(userCode: string, testCode?: string): Promise<ExecutionResult>;
-    lint?(code: string): Promise<any>;
+    lint?(code: string, context?: any): Promise<any>;
     reset?(): Promise<void> | void;
     terminate?(): void;
 }
@@ -123,12 +123,17 @@ export interface ExerciseSlice {
     currentLanguageId: string;
     completedIds: string[];
     userCode: Record<string, string>;
+    userTestCode: Record<string, string>;
+    activeEditorTab: 'code' | 'test';
     vimMode: boolean;
     markComplete: (id: string) => void;
     setCurrent: (id: string) => void;
     setLanguage: (langId: string) => void;
     saveUserCode: (exerciseId: string, languageId: string, code: string) => void;
     getUserCode: (exerciseId: string, languageId: string) => string | undefined;
+    saveUserTestCode: (exerciseId: string, languageId: string, code: string) => void;
+    getUserTestCode: (exerciseId: string, languageId: string) => string | undefined;
+    setActiveEditorTab: (tab: 'code' | 'test') => void;
     setVimMode: (enabled: boolean) => void;
 }
 

@@ -274,7 +274,10 @@ export abstract class BaseAdapter implements CodeRunner {
     });
   }
 
-  async lint(code: string): Promise<DiagnosticItem[]> {
+  async lint(
+    code: string,
+    context?: { activeTab?: 'code' | 'test'; userCode?: string; testCode?: string }
+  ): Promise<DiagnosticItem[]> {
     if (!code.trim()) return [];
     if (!this.ready || !this.worker || this.initError) return [];
 
@@ -320,7 +323,10 @@ export abstract class BaseAdapter implements CodeRunner {
       this.postToWorker({
         type: 'LINT',
         id,
-        code
+        code,
+        userCode: context?.userCode,
+        testCode: context?.testCode,
+        activeTab: context?.activeTab
       });
     });
   }

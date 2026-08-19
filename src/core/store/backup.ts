@@ -9,6 +9,7 @@ export function getInitialProgressState(): Partial<AppState> {
   return {
     completedIds: [],
     userCode: {},
+    userTestCode: {},
     chatConversations: {},
     activeConversationId: {},
     currentExerciseId: exercises[0]?.id || '1.1',
@@ -86,6 +87,10 @@ export function sanitizeBackupData(
       backupState.userCode && typeof backupState.userCode === 'object'
         ? backupState.userCode
         : current.userCode,
+    userTestCode:
+      backupState.userTestCode && typeof backupState.userTestCode === 'object'
+        ? backupState.userTestCode
+        : current.userTestCode,
     vimMode:
       typeof backupState.vimMode === 'boolean'
         ? backupState.vimMode

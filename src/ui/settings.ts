@@ -931,6 +931,7 @@ async function handleExportBackup() {
                 currentLanguageId: state.currentLanguageId,
                 completedIds: state.completedIds,
                 userCode: state.userCode,
+                userTestCode: state.userTestCode,
                 vimMode: state.vimMode,
                 chatSettings: exportChatSettings,
                 chatConversations: state.chatConversations,

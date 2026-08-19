@@ -249,12 +249,18 @@
         <!-- editor -->
         <div class="flex flex-col h-[60%] md:h-auto md:flex-1 relative min-h-0">
           <div
-            class="h-10 px-4 bg-bg-surface text-[10px] uppercase font-bold text-fg-muted tracking-wider flex items-center justify-between select-none border-b border-border-default shrink-0">
-            <div class="flex items-center gap-2">
-              <span>Editor</span>
-              <div id="language-selector-container" class="normal-case"></div>
+            class="h-10 px-2 sm:px-4 bg-bg-surface text-[10px] uppercase font-bold text-fg-muted tracking-wider flex items-center justify-between select-none border-b border-border-default shrink-0 gap-2">
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0 py-1"
+              id="editor-tabs-wrapper">
+              <span
+                class="text-[10px] font-bold text-fg-muted uppercase tracking-wider px-1 sm:px-2 shrink-0 select-none">Editor</span>
+              <div id="editor-tabs-container" class="flex items-center gap-1 min-w-0">
+                <!-- Dynamic code and test tabs injected via JS -->
+              </div>
+              <div class="h-4 w-px bg-border-default shrink-0 mx-1"></div>
+              <div id="language-selector-container" class="normal-case shrink-0"></div>
             </div>
-            <button id="reset-btn" class="hover:cursor-pointer" title="Reset">
+            <button id="reset-btn" class="hover:cursor-pointer shrink-0" title="Reset">
             </button>
           </div>
 

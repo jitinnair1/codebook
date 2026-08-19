@@ -18,6 +18,9 @@ export interface ExecutionContext {
 export interface LintContext {
   id: string;
   code: string;
+  userCode?: string;
+  testCode?: string;
+  activeTab?: 'code' | 'test';
   isCancelled: () => boolean;
 }
 
@@ -130,6 +133,9 @@ export function createWorkerHandler(engine: WorkerEngine): void {
     const context: LintContext = {
       id,
       code,
+      userCode: msg.userCode,
+      testCode: msg.testCode,
+      activeTab: msg.activeTab,
       isCancelled: () => cancelledRequestIds.has(id) || (latestQueuedLintId !== null && latestQueuedLintId !== id)
     };
 

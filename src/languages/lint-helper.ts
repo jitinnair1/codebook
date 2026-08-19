@@ -2,6 +2,9 @@ import { linter, type Diagnostic } from '@codemirror/lint';
 import type { Text, Extension } from '@codemirror/state';
 import type { CodeRunner } from '../core/types';
 import type { DiagnosticItem } from './types';
+import { store } from '../core/store';
+import { exercises } from '../exercises/exercise-registry';
+import { getExerciseVariant } from '../core/types';
 
 /**
  * Converts generic DiagnosticItem entries (line/column based or offset based)
@@ -63,10 +66,10 @@ export function convertDiagnostics(
 }
 
 /**
- * Creates a standard CodeMirror lint Extension for any CodeRunner that supports .lint(code).
+ * Creates a standard CodeMirror lint Extension for any CodeRunner that supports .lint(code, context).
  */
 export function createLanguageLinter(
-  runner: { lint?: (code: string) => Promise<DiagnosticItem[]> } | CodeRunner,
+  runner: { lint?: (code: string, context?: any) => Promise<DiagnosticItem[]> } | CodeRunner,
   langId: string,
   options?: { delay?: number }
 ): Extension {
@@ -77,7 +80,22 @@ export function createLanguageLinter(
       if (!code.trim() || !runner.lint) return [];
 
       try {
-        const items = await runner.lint(code);
+        const state = store.getState();
+        const activeTab = state.activeEditorTab || 'code';
+        const currentExId = state.currentExerciseId;
+        const currentEx = exercises.find(e => e.id === currentExId);
+        const variant = currentEx ? getExerciseVariant(currentEx, langId) : null;
+
+        const userCode = activeTab === 'code' ? code : (state.getUserCode(currentExId, langId) || variant?.initialCode || '');
+        const testCode = activeTab === 'test' ? code : (state.getUserTestCode(currentExId, langId) ?? variant?.testCode ?? '');
+
+        const items = await runner.lint(code, {
+          activeTab,
+          userCode,
+          testCode,
+          exerciseId: currentExId,
+          languageId: langId
+        });
         return convertDiagnostics(items, view.state.doc, langId);
       } catch (err) {
         console.warn(`[${langId} Linter Error]:`, err);

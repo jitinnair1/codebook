@@ -1,5 +1,5 @@
 import * as tsvfs from '@typescript/vfs';
-import { createWorkerHandler } from '../base-worker';
+import { createWorkerHandler, LintContext } from '../base-worker';
 import type { DiagnosticItem } from '../types';
 import harness from './harness.ts?raw';
 
@@ -214,16 +214,23 @@ createWorkerHandler({
     }
   },
 
-  async lint(userCode: string): Promise<DiagnosticItem[]> {
-    if (!userCode.trim()) return [];
+  async lint(code: string, context?: LintContext): Promise<DiagnosticItem[]> {
+    if (!code.trim()) return [];
     if (!ts) {
       ts = await loadTypeScriptCompiler();
     }
 
     try {
+      const activeTab = context?.activeTab || 'code';
+      const userCode = activeTab === 'code' ? code : (context?.userCode || '');
+      const testCode = activeTab === 'test' ? code : (context?.testCode || '');
+
       const fsMap = new Map(cachedFsMap);
       fsMap.set('/index.ts', userCode);
       fsMap.set('/harness.ts', harness);
+      if (testCode) {
+        fsMap.set('/test.ts', testCode);
+      }
 
       const compilerOptions: any = {
         target: ts.ScriptTarget.ES2022,
@@ -236,16 +243,23 @@ createWorkerHandler({
 
       const system = tsvfs.createSystem(fsMap);
       const host = tsvfs.createVirtualCompilerHost(system, compilerOptions, ts);
+      const rootNames = ['/index.ts', '/harness.ts'];
+      if (testCode) {
+        rootNames.push('/test.ts');
+      }
+
       const program = ts.createProgram({
-        rootNames: ['/index.ts', '/harness.ts'],
+        rootNames,
         options: compilerOptions,
         host: host.compilerHost,
       });
 
+      const targetFileName = activeTab === 'test' ? '/test.ts' : '/index.ts';
+
       const syntacticDiagnostics = program.getSyntacticDiagnostics();
       const semanticDiagnostics = program.getSemanticDiagnostics();
       const diagnostics = [...syntacticDiagnostics, ...semanticDiagnostics].filter(
-        d => !d.file || d.file.fileName === '/index.ts'
+        d => !d.file || d.file.fileName === targetFileName
       );
 
       const result: DiagnosticItem[] = [];

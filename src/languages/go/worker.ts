@@ -1,7 +1,7 @@
 import harness from './harness.go?raw';
 import wasmExecRaw from './wasm_exec.js?raw';
 import yaegiWasmUrl from './yaegi.wasm?url';
-import { createWorkerHandler } from '../base-worker';
+import { createWorkerHandler, LintContext } from '../base-worker';
 import type { DiagnosticItem } from '../types';
 
 interface ParsedGoSnippet {
@@ -28,60 +28,52 @@ function parseGoSnippet(code: string): ParsedGoSnippet {
 
     if (inHeader) {
       if (trimmed.startsWith('package ')) {
-        headerLineCount = i + 1;
+        headerLineCount++;
         continue;
       }
-
-      if (trimmed.startsWith('import (') || trimmed === 'import (') {
+      if (trimmed.startsWith('import (')) {
         inImportBlock = true;
-        headerLineCount = i + 1;
+        headerLineCount++;
         continue;
       }
-
       if (inImportBlock) {
-        headerLineCount = i + 1;
+        headerLineCount++;
         if (trimmed === ')') {
           inImportBlock = false;
-          continue;
-        }
-        if (trimmed && !trimmed.startsWith('//') && !trimmed.startsWith('/*')) {
+        } else if (trimmed) {
           imports.add(trimmed);
         }
         continue;
       }
-
       if (trimmed.startsWith('import ')) {
-        headerLineCount = i + 1;
-        const importPath = trimmed.slice(7).trim();
-        if (importPath) imports.add(importPath);
+        headerLineCount++;
+        const imp = trimmed.substring(7).trim();
+        if (imp) imports.add(imp);
         continue;
       }
-
-      if (trimmed !== '' && !trimmed.startsWith('//') && !trimmed.startsWith('/*')) {
-        inHeader = false;
-        bodyLines.push(line);
-      } else {
-        headerLineCount = i + 1;
+      if (!trimmed) {
+        headerLineCount++;
+        continue;
       }
-    } else {
-      bodyLines.push(line);
+      inHeader = false;
     }
+
+    bodyLines.push(line);
   }
 
   return {
     imports,
-    body: bodyLines.join('\n').trim(),
+    body: bodyLines.join('\n'),
     headerLineCount
   };
 }
 
-let cachedHarness: ParsedGoSnippet | null = null;
-
+let cachedHarnessSnippet: ParsedGoSnippet | null = null;
 function getCachedHarness(): ParsedGoSnippet {
-  if (!cachedHarness) {
-    cachedHarness = parseGoSnippet(harness);
+  if (!cachedHarnessSnippet) {
+    cachedHarnessSnippet = parseGoSnippet(harness);
   }
-  return cachedHarness;
+  return cachedHarnessSnippet;
 }
 
 function combineGoCode(userCode: string, testCode: string): string {
@@ -105,12 +97,20 @@ function combineGoCode(userCode: string, testCode: string): string {
   return `package main\n\n${importSection}\n\n${cleanSnippets.join('\n\n')}`;
 }
 
-function combineGoForLint(userCode: string): { combined: string; userLineOffset: number; headerLineCount: number } {
+function combineGoForLint(
+  userCode: string,
+  testCode = '',
+  activeTab: 'code' | 'test' = 'code'
+): { combined: string; lineOffset: number; headerLineCount: number } {
   const harnessSnippet = getCachedHarness();
   const userSnippet = parseGoSnippet(userCode);
+  const testSnippet = parseGoSnippet(testCode);
 
   const imports = new Set<string>(harnessSnippet.imports);
   userSnippet.imports.forEach((imp) => imports.add(imp));
+  if (activeTab === 'test') {
+    testSnippet.imports.forEach((imp) => imports.add(imp));
+  }
 
   const importSection = imports.size > 0
     ? `import (\n\t${Array.from(imports).join('\n\t')}\n)`
@@ -120,11 +120,18 @@ function combineGoForLint(userCode: string): { combined: string; userLineOffset:
   if (importSection) prefixParts.push(importSection);
   if (harnessSnippet.body) prefixParts.push(harnessSnippet.body);
 
-  const prefix = prefixParts.join('\n\n');
-  const userLineOffset = prefix.split('\n').length + 1;
-
-  const combined = `${prefix}\n\n${userSnippet.body}`;
-  return { combined, userLineOffset, headerLineCount: userSnippet.headerLineCount };
+  if (activeTab === 'test') {
+    if (userSnippet.body) prefixParts.push(userSnippet.body);
+    const prefix = prefixParts.join('\n\n');
+    const lineOffset = prefix.split('\n').length + 1;
+    const combined = `${prefix}\n\n${testSnippet.body}`;
+    return { combined, lineOffset, headerLineCount: testSnippet.headerLineCount };
+  } else {
+    const prefix = prefixParts.join('\n\n');
+    const lineOffset = prefix.split('\n').length + 1;
+    const combined = `${prefix}\n\n${userSnippet.body}`;
+    return { combined, lineOffset, headerLineCount: userSnippet.headerLineCount };
+  }
 }
 
 async function runWasmInterpreter(code: string): Promise<{ success: boolean; output: string; error?: string }> {
@@ -173,11 +180,15 @@ createWorkerHandler({
     return await runWasmInterpreter(combinedCode);
   },
 
-  async lint(userCode: string): Promise<DiagnosticItem[]> {
-    if (!userCode.trim()) return [];
+  async lint(code: string, context?: LintContext): Promise<DiagnosticItem[]> {
+    if (!code.trim()) return [];
     if (typeof (self as any).yaegiEval !== 'function') return [];
 
-    const { combined, userLineOffset, headerLineCount } = combineGoForLint(userCode);
+    const activeTab = context?.activeTab || 'code';
+    const userCode = activeTab === 'code' ? code : (context?.userCode || '');
+    const testCode = activeTab === 'test' ? code : (context?.testCode || '');
+
+    const { combined, lineOffset, headerLineCount } = combineGoForLint(userCode, testCode, activeTab);
 
     try {
       const res = await runWasmInterpreter(combined);
@@ -195,7 +206,7 @@ createWorkerHandler({
         const col = parseInt(match[2], 10) || 1;
         const message = match[3].trim();
 
-        let line = (rawLine - userLineOffset) + headerLineCount + 1;
+        let line = (rawLine - lineOffset) + headerLineCount + 1;
         if (line <= 0) line = 1;
 
         diagnostics.push({

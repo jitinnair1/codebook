@@ -1,6 +1,6 @@
 import harness from './harness.ml?raw';
 import toplevelUrl from './toplevel.bc.js?url';
-import { createWorkerHandler } from '../base-worker';
+import { createWorkerHandler, LintContext } from '../base-worker';
 import type { DiagnosticItem } from '../types';
 
 interface OCamlResult {
@@ -143,20 +143,38 @@ createWorkerHandler({
     }
   },
 
-  lint(code: string): DiagnosticItem[] {
+  lint(code: string, context?: LintContext): DiagnosticItem[] {
     if (!code.trim()) return [];
     const ocaml = getOCamlRuntime();
     if (!ocaml || !ocaml.run) return [];
 
+    const isTestTab = context?.activeTab === 'test';
+    const userCode = isTestTab ? (context?.userCode || '') : code;
+    const testCode = isTestTab ? code : (context?.testCode || '');
+
     const harnessLines = harness ? harness.split('\n').length : 0;
-    const combinedCode = harness ? `${harness}\n${code}\n;;` : `${code}\n;;`;
+    const userLines = userCode ? userCode.split('\n').length : 0;
+
+    const combinedCode = `${harness}\n${userCode}\n${testCode};;`;
 
     try {
       const result = ocaml.run(combinedCode);
       if (!result.err || !result.err.trim()) {
         return [];
       }
-      return parseOCamlDiagnostics(result.err, harnessLines);
+      const allDiagnostics = parseOCamlDiagnostics(result.err, harnessLines);
+      if (!isTestTab) {
+        // Filter to userCode span (line <= userLines)
+        return allDiagnostics.filter(d => (d.line || 1) <= userLines);
+      } else {
+        // Filter to testCode span and remap line number
+        return allDiagnostics
+          .filter(d => (d.line || 1) > userLines)
+          .map(d => ({
+            ...d,
+            line: Math.max(1, (d.line || 1) - userLines)
+          }));
+      }
     } catch (err: any) {
       console.warn('[OCaml Worker Lint Error]:', err);
       return [];

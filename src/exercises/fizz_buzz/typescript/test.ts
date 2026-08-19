@@ -1,5 +1,3 @@
-// JN: since TS lang server will flag errors here as these functions are not availabl, we ignore checks:
-// @ts-nocheck
 if (typeof fizzbuzz !== "function") {
   throw new Error("fizzbuzz function is not defined");
 }

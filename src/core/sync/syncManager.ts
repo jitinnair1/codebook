@@ -1,7 +1,8 @@
 // src/core/sync/syncManager.ts
 import { SITE_TITLE } from '../siteConfig';
+import { GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_WORKER_URL } from './oauthConfig';
 import { store, AppState, ChatConversation, ChatSettings } from '../store';
-import { createGist, fetchGist, updateGist, GistActionResult } from './gistClient';
+import { createGist, fetchGist, updateGist, exchangeOAuthCode, findSiteGist, GistActionResult } from './gistClient';
 
 export type SyncStatusType = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
 
@@ -330,15 +331,133 @@ export function triggerImmediatePush(): void {
 }
 
 /**
- * Checks for remote Gist updates on startup.
+ * Initiates the GitHub OAuth authorization flow by redirecting to GitHub.
+ * Packages the current page URL into the state parameter so the worker gateway
+ * can redirect back to localhost, GitHub Pages, or any custom domain.
+ */
+export function initiateOAuthLogin(): void {
+  if (typeof window === 'undefined') return;
+
+  const csrf = crypto.randomUUID();
+  sessionStorage.setItem('codebook_gh_oauth_state', csrf);
+
+  // Package CSRF token and return URL into state
+  const statePayload = btoa(
+    JSON.stringify({
+      csrf,
+      returnUrl: window.location.origin + window.location.pathname,
+    })
+  );
+
+  const authUrl = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(
+    GITHUB_OAUTH_CLIENT_ID
+  )}&scope=gist&state=${encodeURIComponent(statePayload)}`;
+
+  window.location.href = authUrl;
+}
+
+/**
+ * Handles incoming GitHub OAuth redirect callback (?code=...&state=...) on application startup.
+ */
+export async function handleOAuthCallback(): Promise<boolean> {
+  if (typeof window === 'undefined' || !window.location.search) {
+    return false;
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  const rawState = urlParams.get('state');
+
+  if (!code) return false;
+
+  // Extract CSRF from state payload
+  let incomingCsrf = rawState;
+  if (rawState) {
+    try {
+      const parsed = JSON.parse(atob(rawState));
+      if (parsed.csrf) incomingCsrf = parsed.csrf;
+    } catch {}
+  }
+
+  // CSRF validation
+  const savedState = sessionStorage.getItem('codebook_gh_oauth_state');
+  sessionStorage.removeItem('codebook_gh_oauth_state');
+
+  if (savedState && incomingCsrf && incomingCsrf !== savedState) {
+    console.error('[sync] OAuth state mismatch (possible CSRF attack).');
+    setSyncStatus('error', 'OAuth security verification failed.');
+    return false;
+  }
+
+  // Remove OAuth query parameters from URL bar without reloading
+  urlParams.delete('code');
+  urlParams.delete('state');
+  const remainingQuery = urlParams.toString();
+  const cleanUrl =
+    window.location.pathname +
+    (remainingQuery ? `?${remainingQuery}` : '') +
+    window.location.hash;
+  window.history.replaceState({}, document.title, cleanUrl);
+
+  setSyncStatus('syncing', 'Signing in with GitHub...');
+
+  try {
+    const exchangeRes = await exchangeOAuthCode(GITHUB_OAUTH_WORKER_URL, code);
+    if (!exchangeRes.success || !exchangeRes.token) {
+      setSyncStatus('error', exchangeRes.error || 'Failed to exchange authorization code.');
+      return false;
+    }
+
+    const token = exchangeRes.token;
+
+    setSyncStatus('syncing', 'Locating your Codebook backup...');
+    const discoveryRes = await findSiteGist(token);
+
+    if (discoveryRes.success && discoveryRes.gist?.gistId) {
+      // Existing backup found for this site instance
+      const now = Date.now();
+      store.getState().setGistSyncSettings({
+        enabled: true,
+        token,
+        gistId: discoveryRes.gist.gistId,
+        autoSync: true,
+        lastSyncedAt: now,
+      });
+
+      await pullFromGist({ smartMerge: true });
+      setSyncStatus('synced', 'Connected to GitHub and synced successfully!', now);
+      return true;
+    } else {
+      // No existing backup found; create a new one
+      const createRes = await createAndLinkGist(token);
+      if (createRes.success) {
+        setSyncStatus('synced', 'Created new Codebook backup on GitHub Gist.');
+        return true;
+      } else {
+        setSyncStatus('error', createRes.error || 'Failed to initialize Gist backup.');
+        return false;
+      }
+    }
+  } catch (err: any) {
+    const errorMsg = err?.message || 'Error during GitHub sign in.';
+    setSyncStatus('error', errorMsg);
+    return false;
+  }
+}
+
+/**
+ * Checks for OAuth callbacks and remote Gist updates on startup.
  */
 export async function initStartupSync(): Promise<void> {
+  // Handle any OAuth redirect callback first
+  const handledAuth = await handleOAuthCallback();
+
   const { gistSyncSettings } = store.getState();
   if (!gistSyncSettings?.enabled || !gistSyncSettings?.gistId) {
     return;
   }
 
-  // Network listener
+  // Setup network status listeners
   if (typeof window !== 'undefined') {
     window.addEventListener('online', () => {
       setSyncStatus('idle');
@@ -349,10 +468,12 @@ export async function initStartupSync(): Promise<void> {
     });
   }
 
-  // Non-blocking background pull & merge
-  try {
-    await pullFromGist({ smartMerge: true });
-  } catch (err) {
-    console.warn('[sync] Startup sync failed:', err);
+  // If we didn't just perform an OAuth pull, perform startup sync
+  if (!handledAuth) {
+    try {
+      await pullFromGist({ smartMerge: true });
+    } catch (err) {
+      console.warn('[sync] Startup sync failed:', err);
+    }
   }
 }

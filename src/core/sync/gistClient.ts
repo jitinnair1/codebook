@@ -309,3 +309,141 @@ export async function updateGist(
     };
   }
 }
+
+export interface DiscoveredGist {
+  gistId: string;
+  htmlUrl?: string;
+  filename: string;
+  updatedAt?: string;
+  description?: string;
+}
+
+/**
+ * Exchanges a temporary OAuth authorization code with the Cloudflare Worker proxy for a GitHub access_token.
+ */
+export async function exchangeOAuthCode(
+  workerUrl: string,
+  code: string
+): Promise<{ success: boolean; token?: string; error?: string }> {
+  if (!workerUrl || !workerUrl.trim()) {
+    return { success: false, error: 'OAuth worker URL is not configured.' };
+  }
+  if (!code || !code.trim()) {
+    return { success: false, error: 'OAuth code is required.' };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const res = await fetch(workerUrl.trim(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ code: code.trim() }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      return {
+        success: false,
+        error: data.error_description || data.error || `HTTP ${res.status}: Failed to exchange code.`,
+      };
+    }
+
+    if (data.access_token) {
+      return { success: true, token: data.access_token };
+    }
+
+    return { success: false, error: 'No access token received from authorization server.' };
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    return {
+      success: false,
+      error: err.name === 'AbortError' ? 'OAuth exchange timed out.' : (err.message || 'Network request failed.'),
+    };
+  }
+}
+
+/**
+ * Searches the authenticated user's Gists to automatically locate an existing backup for this site instance.
+ * Matches GIST_DEFAULT_FILENAME or legacy codebook-sync.json.
+ */
+export async function findSiteGist(
+  token: string,
+  targetFilename = GIST_DEFAULT_FILENAME
+): Promise<{ success: boolean; gist?: DiscoveredGist; error?: string }> {
+  if (!token || !token.trim()) {
+    return { success: false, error: 'GitHub token is required.' };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const res = await fetch('https://api.github.com/gists?per_page=100', {
+      method: 'GET',
+      headers: getHeaders(token),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const errorMsg = await parseErrorMessage(res);
+      return { success: false, error: errorMsg };
+    }
+
+    const gists = await res.json();
+    if (!Array.isArray(gists)) {
+      return { success: true, gist: undefined };
+    }
+
+    // 1. Primary check: exact site filename match (e.g. `learn-rust-sync.json`)
+    for (const g of gists) {
+      const files = g.files || {};
+      if (files[targetFilename]) {
+        return {
+          success: true,
+          gist: {
+            gistId: g.id,
+            htmlUrl: g.html_url,
+            filename: targetFilename,
+            updatedAt: g.updated_at,
+            description: g.description,
+          },
+        };
+      }
+    }
+
+    // 2. Secondary fallback: check legacy `codebook-sync.json` if this site is the default "codebook"
+    if (targetFilename === 'codebook-sync.json') {
+      for (const g of gists) {
+        const files = g.files || {};
+        if (files['codebook-sync.json']) {
+          return {
+            success: true,
+            gist: {
+              gistId: g.id,
+              htmlUrl: g.html_url,
+              filename: 'codebook-sync.json',
+              updatedAt: g.updated_at,
+              description: g.description,
+            },
+          };
+        }
+      }
+    }
+
+    return { success: true, gist: undefined };
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    return {
+      success: false,
+      error: err.name === 'AbortError' ? 'Gist discovery timed out.' : (err.message || 'Network request failed.'),
+    };
+  }
+}

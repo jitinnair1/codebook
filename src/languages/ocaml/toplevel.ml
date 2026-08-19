@@ -1,5 +1,5 @@
 open Js_of_ocaml
-open Js_of_ocaml_toplevel
+open Js_of_ocaml_toplevel_common
 
 (* --- state --- *)
 let stdout_buffer = Buffer.create 1024

@@ -1,34 +1,38 @@
-# Build the Toplevel
+# Build the WebAssembly Toplevel
 
-The following are instrcutions to ONLY build the Toplevel. It is assumed you already have `opam` installed:
+The following are instructions to build the OCaml WebAssembly (`wasm_of_ocaml`) Toplevel. It is assumed you already have `opam` installed.
 
-Initialize a local switch (this creates a `_opam` folder hidden in the root)
+### 1. Initialize a local switch (creates a `_opam` folder in the root) 
 
 ```bash
 opam switch create . 5.2.0
 ```
-Activate the Environment
+
+### 2. Activate the Environment
 
 ```bash
 eval $(opam env)
 ```
 
-Install dependencies:
+### 3. Install dependencies
 
 ```bash
 opam install . --deps-only
 ```
 
-Now, build the Toplevel
+### 4. Build the Wasm Toplevel
+
+Use the **default (dev) profile** — this is required for the OCaml toplevel REPL. Do NOT use `--profile release` as that disables dynamic compilation.
 
 ```bash
-dune build
+dune build ./toplevel.bc.wasm.js
 ```
-and copt the built file to `public`
+
+### 5. Copy the built Wasm assets
+
+Copy the generated JavaScript loader **and** the WebAssembly assets directory to the OCaml language directory:
 
 ```bash
-cp _build/default/toplevel.bc.js ./toplevel.bc.js
+cp _build/default/toplevel.bc.wasm.js ./toplevel.bc.wasm.js
+cp -r _build/default/toplevel.bc.wasm.assets ./toplevel.bc.wasm.assets
 ```
-
-NOTE: If you run into eval `Unbound module` errors, it could be you've not run
-`eval $(opam env)`

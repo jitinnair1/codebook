@@ -1,5 +1,4 @@
 import harness from './harness.ml?raw';
-import toplevelUrl from './toplevel.bc.js?url';
 import { createWorkerHandler } from '../base-worker';
 import type { DiagnosticItem } from '../types';
 
@@ -80,10 +79,75 @@ function stripHarnessSignatures(output: string): string {
 }
 
 createWorkerHandler({
-  async init() {
-    const response = await fetch(toplevelUrl);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} fetching toplevel.bc.js`);
+    async init() {
+        const wasmJsUrl = new URL('./toplevel.bc.wasm.js', import.meta.url).href;
+        const legacyJsUrl = new URL('./toplevel.bc.js', import.meta.url).href;
+
+        let response = await fetch(wasmJsUrl);
+        if (!response.ok) {
+            const fallbackResponse = await fetch(legacyJsUrl);
+            if (fallbackResponse.ok) {
+                response = fallbackResponse;
+            } else {
+                throw new Error(`Failed to load OCaml runtime: HTTP ${response.status}`);
+            }
+        }
+
+        const script = await response.text();
+
+        // Provide currentScript URL context so wasm_of_ocaml resolves its assets folder in a Web Worker
+        if (!(globalThis as any).document) {
+            (globalThis as any).document = {
+                currentScript: { src: wasmJsUrl }
+            };
+        }
+
+        // Await the loader execution (wasm_of_ocaml loader returns an async Promise)
+        const initResult = (0, eval)(script);
+        if (initResult && typeof initResult.then === 'function') {
+            await initResult;
+        }
+
+        // Verify runtime is available
+        const startTime = Date.now();
+        while (!getOCamlRuntime() && Date.now() - startTime < 3000) {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
+        if (!getOCamlRuntime()) {
+            throw new Error('OCaml compiler runtime (ocaml.run) was not found after initialization');
+        }
+    },
+
+    execute(userCode: string, testCode: string = '') {
+        const ocaml = getOCamlRuntime();
+
+        if (!ocaml || !ocaml.run) {
+            return {
+                success: false,
+                output: '',
+                error: 'OCaml compiler not initialized in worker'
+            };
+        }
+
+        const combinedCode = harness + '\n' + userCode + '\n' + testCode + ';;';
+
+        try {
+            const result = ocaml.run(combinedCode);
+            const cleanOutput = (result.out || '').replace(/module Tests :[\s\S]*?end\n/g, '');
+
+            return {
+                success: Boolean(result.success),
+                output: cleanOutput,
+                error: result.err || ''
+            };
+        } catch (err: any) {
+            return {
+                success: false,
+                output: '',
+                error: err?.message || String(err)
+            };
+        }
     }
     const script = await response.text();
     // Indirect eval: (0, eval)(...) runs in global scope in sloppy mode (required for `with()` statements in js_of_ocaml)

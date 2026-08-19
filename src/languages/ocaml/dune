@@ -1,19 +1,15 @@
 (executable
  (name toplevel)
- (modes js)
+ (modes wasm)
  (libraries
-   compiler-libs.toplevel
    js_of_ocaml
-   js_of_ocaml-toplevel
-   js_of_ocaml-compiler.dynlink
-   )
+   js_of_ocaml-toplevel.common
+   compiler-libs.toplevel
+   wasm_of_ocaml-compiler.dynlink)
  (preprocess (pps js_of_ocaml-ppx))
- (link_flags (:standard -linkall))
- (js_of_ocaml
-   (flags (
+ (link_flags (:standard -linkall -g))
+ (wasm_of_ocaml
+   (flags
      :standard
      --toplevel
-     --disable=effects
-     --export=export.txt
-     ))
-   (javascript_files export.txt)))
+     --disable=effects)))

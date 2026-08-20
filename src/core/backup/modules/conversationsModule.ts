@@ -25,6 +25,9 @@ export function exportConversations(state: AppState): ConversationsPayload {
               role: m.role,
               content: m.content,
               timestamp: m.timestamp,
+              ...(m.isError ? { isError: true } : {}),
+              ...(m.failedPrompt ? { failedPrompt: m.failedPrompt } : {}),
+              ...(m.userMsgId ? { userMsgId: m.userMsgId } : {}),
             }))
           : [],
       });
@@ -76,6 +79,9 @@ export function sanitizeConversations(raw: unknown, current: AppState): Partial<
             role: m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
             content: String(m.content || ''),
             timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
+            ...(m.isError ? { isError: true } : {}),
+            ...(m.failedPrompt ? { failedPrompt: String(m.failedPrompt) } : {}),
+            ...(m.userMsgId ? { userMsgId: String(m.userMsgId) } : {}),
           }))
         : [],
     };

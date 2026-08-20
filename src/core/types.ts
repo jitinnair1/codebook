@@ -55,6 +55,9 @@ export interface ChatMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
+    isError?: boolean;
+    failedPrompt?: string;
+    userMsgId?: string;
 }
 
 export interface ChatConversation {
@@ -143,6 +146,7 @@ export interface ChatSlice {
     deleteConversation: (exerciseId: string, conversationId: string) => void;
     getActiveConversation: (exerciseId: string) => ChatConversation | undefined;
     addChatMessage: (exerciseId: string, message: ChatMessage, conversationId?: string) => void;
+    removeChatMessages: (exerciseId: string, messageIds: string[], conversationId?: string) => void;
     clearChatHistory: (exerciseId: string, conversationId?: string) => void;
 }
 

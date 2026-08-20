@@ -12,6 +12,7 @@ import { runner } from './core/runner';
 
 //ui
 import { ICONS } from './ui/icons';
+import { status } from './ui/status';
 import { showPopup } from './ui/popup';
 import { initBranding } from './ui/branding';
 import { renderSidebar, initSidebarToggle } from './ui/sidebar';
@@ -128,9 +129,10 @@ function render() {
             showPopup('Saved!');
         });
 
-        //reset console on exercise or language switch
+        //reset console and status on exercise or language switch
         if (isExerciseChanged || isLanguageChanged) {
             elements.console.textContent = "// Ready...";
+            status.setReady();
         }
     } else if (isUserCodeChanged) {
         // In-place update of editor code when store changes externally (e.g. backup restore or Gist pull)

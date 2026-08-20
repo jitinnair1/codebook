@@ -369,7 +369,7 @@ export function renderChatMessages() {
 
     if (isUser) {
       return `
-        <div class="space-y-1">
+        <div class="space-y-1" data-message-id="${msg.id}">
           <div class="flex items-center gap-2 text-[10px] text-fg-muted">
             <span class="font-bold text-brand uppercase tracking-wider">You</span>
             <span>•</span>
@@ -380,10 +380,29 @@ export function renderChatMessages() {
           </div>
         </div>
       `;
+    } else if (msg.isError) {
+      return `
+        <div class="space-y-1" data-message-id="${msg.id}">
+          <div class="flex items-center gap-2 text-[10px] text-fg-muted">
+            <span class="font-bold text-fg-muted uppercase tracking-wider">Rubber Duck</span>
+            <span>•</span>
+            <span>${timeStr}</span>
+          </div>
+          <div class="flex items-center justify-between gap-2 text-xs text-fg-muted leading-relaxed pl-2.5 border-l-2 border-border-default">
+            <span>${escapeHtml(msg.content).replace(/\n/g, '<br>')}</span>
+            <button type="button"
+              data-retry-error-id="${msg.id}"
+              class="chat-retry-btn shrink-0 inline-flex items-center gap-1 text-xs text-brand hover:underline transition-colors cursor-pointer">
+              ${ICONS.RETRY}
+              <span>Try again</span>
+            </button>
+          </div>
+        </div>
+      `;
     } else {
       const parsedHtml = parseChatMarkdown(msg.content);
       return `
-        <div class="space-y-1">
+        <div class="space-y-1" data-message-id="${msg.id}">
           <div class="flex items-center gap-2 text-[10px] text-fg-muted">
             <span class="font-bold text-fg-muted uppercase tracking-wider">Rubber Duck</span>
             <span>•</span>
@@ -521,6 +540,17 @@ function bindPanelEvents() {
     }
   });
 
+  // Delegated retry handler for failed chat responses
+  elements.chat.messages?.addEventListener('click', (e) => {
+    const retryBtn = (e.target as HTMLElement).closest('.chat-retry-btn') as HTMLButtonElement | null;
+    if (!retryBtn) return;
+
+    const errorMsgId = retryBtn.getAttribute('data-retry-error-id');
+    if (!errorMsgId) return;
+
+    handleRetryFailedMessage(errorMsgId);
+  });
+
   // Chat input focus, resize & submit listeners
   const input = elements.chat.input;
   const sendBtn = elements.chat.sendBtn;
@@ -593,6 +623,59 @@ function abortCurrentGeneration(conversationId?: string) {
     activeStreams.delete(targetConvId);
     updateSendButtonState();
   }
+}
+
+function handleRetryFailedMessage(errorMsgId: string) {
+  const state = store.getState();
+  const currentExId = state.currentExerciseId;
+  const activeConv = state.getActiveConversation(currentExId);
+  if (!activeConv) return;
+
+  const errorMsgIndex = activeConv.messages.findIndex(m => m.id === errorMsgId);
+  if (errorMsgIndex === -1) return;
+
+  const errorMsg = activeConv.messages[errorMsgIndex];
+
+  // Find associated user prompt to restore
+  let promptToRestore = errorMsg.failedPrompt || '';
+  const messageIdsToRemove = [errorMsg.id];
+
+  if (errorMsg.userMsgId) {
+    messageIdsToRemove.push(errorMsg.userMsgId);
+    if (!promptToRestore) {
+      const matchingUserMsg = activeConv.messages.find(m => m.id === errorMsg.userMsgId);
+      if (matchingUserMsg) {
+        promptToRestore = matchingUserMsg.content;
+      }
+    }
+  } else {
+    // If userMsgId wasn't set, find the preceding user message
+    for (let i = errorMsgIndex - 1; i >= 0; i--) {
+      if (activeConv.messages[i].role === 'user') {
+        messageIdsToRemove.push(activeConv.messages[i].id);
+        if (!promptToRestore) {
+          promptToRestore = activeConv.messages[i].content;
+        }
+        break;
+      }
+    }
+  }
+
+  // Roll back the messages from store
+  store.getState().removeChatMessages(currentExId, messageIdsToRemove, activeConv.id);
+
+  // Restore prompt to chat input textarea & focus
+  if (elements.chat.input) {
+    elements.chat.input.value = promptToRestore;
+    handleInputResize();
+    elements.chat.input.focus();
+    const len = promptToRestore.length;
+    elements.chat.input.setSelectionRange(len, len);
+  }
+
+  updateSendButtonState();
+  renderChatMessages();
+  scrollToBottom(true);
 }
 
 async function submitUserMessage() {
@@ -736,8 +819,11 @@ async function submitUserMessage() {
         const errorMsg: ChatMessage = {
           id: `err-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           role: 'assistant',
-          content: `⚠️ **Unable to get response**\n\n${err?.message || 'Unknown network error. Please check your API settings.'}`,
+          content: err?.message || 'Failed to get response. Please check your API settings.',
           timestamp: Date.now(),
+          isError: true,
+          failedPrompt: content,
+          userMsgId: userMsg.id,
         };
         store.getState().addChatMessage(currentExId, errorMsg, convId);
       }

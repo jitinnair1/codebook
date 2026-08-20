@@ -30,6 +30,9 @@ export interface SavedChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  isError?: boolean;
+  failedPrompt?: string;
+  userMsgId?: string;
 }
 
 export interface SavedConversation {

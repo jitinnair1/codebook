@@ -153,6 +153,31 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
     });
   },
 
+  removeChatMessages: (exerciseId: string, messageIds: string[], conversationId?: string) => {
+    const state = get();
+    const targetId = conversationId || state.activeConversationId[exerciseId];
+    if (!targetId || !messageIds.length) return;
+
+    const idSet = new Set(messageIds);
+    const convs = (state.chatConversations[exerciseId] || []).map((c) => {
+      if (c.id === targetId) {
+        return {
+          ...c,
+          updatedAt: Date.now(),
+          messages: c.messages.filter((m) => !idSet.has(m.id)),
+        };
+      }
+      return c;
+    });
+
+    set({
+      chatConversations: {
+        ...state.chatConversations,
+        [exerciseId]: convs,
+      },
+    });
+  },
+
   clearChatHistory: (exerciseId: string, conversationId?: string) => {
     const state = get();
     const targetId = conversationId || state.activeConversationId[exerciseId];

@@ -5,6 +5,7 @@ export interface MetadataPayload {
   version: number;
   siteTitle: string;
   siteSlug: string;
+  storageKey: string;
   exportedAt: string;
   updatedAt: number;
 }

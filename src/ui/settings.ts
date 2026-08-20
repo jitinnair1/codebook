@@ -923,6 +923,7 @@ async function handleImportBackup(e: Event) {
         cachedModels = [];
         modelFetchError = null;
         syncSettingsUI();
+        updateStorageUsageDisplay();
 
         showBackupStatus('Backup restored successfully.');
     } catch (err: any) {
@@ -976,6 +977,9 @@ function handleClearLocalStorage() {
         confirmText: 'Nuke All Storage',
         onConfirm: () => {
             abortAllStreams();
+            try {
+                store.getState().unlinkGist();
+            } catch {}
             localStorage.clear();
             window.location.reload();
         },

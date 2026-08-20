@@ -12,6 +12,7 @@ export function getInitialProgressState(): Partial<AppState> {
   return {
     completedIds: [],
     userCode: {},
+    userCodeTimestamps: {},
     chatConversations: {},
     activeConversationId: {},
     currentExerciseId: exercises[0]?.id || '',

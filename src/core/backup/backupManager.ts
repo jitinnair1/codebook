@@ -20,6 +20,7 @@ export function createMetadata(): MetadataPayload {
     version: BACKUP_VERSION,
     siteTitle: SITE_TITLE,
     siteSlug: SITE_SLUG,
+    storageKey: `${SITE_SLUG}_storage`,
     exportedAt: new Date().toISOString(),
     updatedAt: Date.now(),
   };

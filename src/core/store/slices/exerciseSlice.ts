@@ -10,6 +10,7 @@ export const createExerciseSlice: StateCreator<AppState, [], [], ExerciseSlice> 
   currentLanguageId: defaultLanguageId,
   completedIds: [],
   userCode: {},
+  userCodeTimestamps: {},
   vimMode: false,
 
   markComplete: (id: string) => {
@@ -26,7 +27,11 @@ export const createExerciseSlice: StateCreator<AppState, [], [], ExerciseSlice> 
 
   saveUserCode: (exerciseId: string, languageId: string, code: string) => {
     const key = `${exerciseId}:${languageId}`;
-    set({ userCode: { ...get().userCode, [key]: code } });
+    const now = Date.now();
+    set({
+      userCode: { ...get().userCode, [key]: code },
+      userCodeTimestamps: { ...(get().userCodeTimestamps || {}), [key]: now },
+    });
     scheduleAutoPush();
   },
 

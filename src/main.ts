@@ -70,33 +70,37 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
 let lastRenderedExerciseId: string | null = null;
 let lastRenderedLanguageId: string | null = null;
 let lastRenderedCompletedIds: string[] = [];
+let lastRenderedUserCode: string | null = null;
 
 function render() {
     const { currentExerciseId, currentLanguageId, completedIds } = store.getState();
 
     const prevExerciseId = lastRenderedExerciseId;
     const prevLanguageId = lastRenderedLanguageId;
+    const prevUserCode = lastRenderedUserCode;
+
+    const currentEx = exercises.find(e => e.id === currentExerciseId);
+    if (!currentEx) return;
+
+    const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
+    const currentUserCode = store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode;
 
     const isInitial = prevExerciseId === null || prevLanguageId === null;
     const isExerciseChanged = prevExerciseId !== null && currentExerciseId !== prevExerciseId;
     const isLanguageChanged = prevLanguageId !== null && currentLanguageId !== prevLanguageId;
     const isCompletedChanged = completedIds.length !== lastRenderedCompletedIds.length ||
         completedIds.some((id, idx) => id !== lastRenderedCompletedIds[idx]);
+    const isUserCodeChanged = prevUserCode !== null && currentUserCode !== prevUserCode;
 
     //render only on key changes and not when say chat responses are streaming in
-    if (!isInitial && !isExerciseChanged && !isLanguageChanged && !isCompletedChanged) {
+    if (!isInitial && !isExerciseChanged && !isLanguageChanged && !isCompletedChanged && !isUserCodeChanged) {
         return;
     }
 
     lastRenderedExerciseId = currentExerciseId;
     lastRenderedLanguageId = currentLanguageId;
     lastRenderedCompletedIds = [...completedIds];
-
-    const currentEx = exercises.find(e => e.id === currentExerciseId);
-
-    if (!currentEx) return;
-
-    const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
+    lastRenderedUserCode = currentUserCode;
 
     // If exercise or language changed (or initial load), update problem statement, language selector and editor
     if (isInitial || isExerciseChanged || isLanguageChanged) {
@@ -120,8 +124,7 @@ function render() {
         const languageExtension = getLanguageExtension(currentLanguageId);
 
         //initialize editor with user code (loadExerciseCode automatically saves prior context)
-        const editorText = store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode;
-        loadExerciseCode(currentExerciseId, currentLanguageId, editorText, languageExtension, () => {
+        loadExerciseCode(currentExerciseId, currentLanguageId, currentUserCode, languageExtension, () => {
             showPopup('Saved!');
         });
 
@@ -129,6 +132,9 @@ function render() {
         if (isExerciseChanged || isLanguageChanged) {
             elements.console.textContent = "// Ready...";
         }
+    } else if (isUserCodeChanged) {
+        // In-place update of editor code when store changes externally (e.g. backup restore or Gist pull)
+        setEditorCode(currentUserCode);
     }
 
     //sidebar & progress (updates on exercise switch or completion changes)

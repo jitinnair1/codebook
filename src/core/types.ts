@@ -123,6 +123,7 @@ export interface ExerciseSlice {
     currentLanguageId: string;
     completedIds: string[];
     userCode: Record<string, string>;
+    userCodeTimestamps?: Record<string, number>;
     vimMode: boolean;
     markComplete: (id: string) => void;
     setCurrent: (id: string) => void;

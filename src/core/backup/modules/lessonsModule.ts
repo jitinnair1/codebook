@@ -36,14 +36,22 @@ export function exportLessons(state: AppState): LessonsPayload {
     }
   }
 
-  // 3. Transform map into structured list
+  // 3. Transform map into structured list with per-lesson timestamps
   const lessons: LessonProgressItem[] = [];
   for (const [slug, item] of lessonMap.entries()) {
     const hasCode = Object.keys(item.code).length > 0;
+    let maxTs = 0;
+    if (state.userCodeTimestamps) {
+      for (const langId of Object.keys(item.code)) {
+        const ts = state.userCodeTimestamps[`${slug}:${langId}`];
+        if (ts && ts > maxTs) maxTs = ts;
+      }
+    }
     lessons.push({
       slug,
       completed: item.completed,
       ...(hasCode ? { code: item.code } : {}),
+      ...(maxTs > 0 ? { updatedAt: maxTs } : {}),
     });
   }
 
@@ -82,6 +90,7 @@ export function sanitizeLessons(raw: unknown, current: AppState): Partial<AppSta
 
   const completedSet = new Set<string>();
   const userCode: Record<string, string> = {};
+  const userCodeTimestamps: Record<string, number> = {};
 
   if (Array.isArray(payload.lessons)) {
     for (const item of payload.lessons) {
@@ -93,10 +102,16 @@ export function sanitizeLessons(raw: unknown, current: AppState): Partial<AppSta
         completedSet.add(lessonSlug);
       }
 
+      const itemUpdatedAt = typeof item.updatedAt === 'number' ? item.updatedAt : 0;
+
       if (item.code && typeof item.code === 'object') {
         for (const [langId, codeStr] of Object.entries(item.code)) {
           if (typeof codeStr === 'string' && codeStr.trim()) {
-            userCode[`${lessonSlug}:${langId}`] = codeStr;
+            const key = `${lessonSlug}:${langId}`;
+            userCode[key] = codeStr;
+            if (itemUpdatedAt > 0) {
+              userCodeTimestamps[key] = itemUpdatedAt;
+            }
           }
         }
       }
@@ -108,6 +123,7 @@ export function sanitizeLessons(raw: unknown, current: AppState): Partial<AppSta
     currentLanguageId: resolvedActiveLang,
     completedIds: Array.from(completedSet),
     userCode,
+    userCodeTimestamps,
   };
 }
 
@@ -118,14 +134,31 @@ export function mergeLessons(local: AppState, remote: LessonsPayload | any): Par
   const remoteCompleted = Array.isArray(sanitizedRemote.completedIds) ? sanitizedRemote.completedIds : [];
   const mergedCompleted = Array.from(new Set([...localCompleted, ...remoteCompleted]));
 
-  const mergedUserCode: Record<string, string> = {
-    ...(sanitizedRemote.userCode || {}),
-    ...(local.userCode || {}),
-  };
+  const localCode = local.userCode || {};
+  const localTimestamps = local.userCodeTimestamps || {};
+  const remoteCode = sanitizedRemote.userCode || {};
+  const remoteTimestamps = sanitizedRemote.userCodeTimestamps || {};
+
+  const mergedUserCode: Record<string, string> = { ...localCode };
+  const mergedTimestamps: Record<string, number> = { ...localTimestamps };
+
+  // Compare per-exercise timestamps: newer remote code overwrites stale local code
+  for (const [key, rCode] of Object.entries(remoteCode)) {
+    const lCode = localCode[key];
+    const rTs = remoteTimestamps[key] || 0;
+    const lTs = localTimestamps[key] || 0;
+
+    // If local has no code for this key, or remote timestamp is strictly newer
+    if (!lCode || rTs > lTs) {
+      mergedUserCode[key] = rCode;
+      mergedTimestamps[key] = rTs || lTs || Date.now();
+    }
+  }
 
   return {
     completedIds: mergedCompleted,
     userCode: mergedUserCode,
+    userCodeTimestamps: mergedTimestamps,
     currentExerciseId: local.currentExerciseId || sanitizedRemote.currentExerciseId,
     currentLanguageId: local.currentLanguageId || sanitizedRemote.currentLanguageId,
   };

@@ -24,6 +24,7 @@ export interface GistActionResult {
   htmlUrl?: string;
   files?: Record<string, GistFileEntry>;
   updatedAt?: string;
+  notModified?: boolean;
   error?: string;
 }
 
@@ -66,13 +67,16 @@ export function extractGistId(input: string): string {
 /**
  * Helper to build GitHub REST API request headers.
  */
-function getHeaders(token?: string): Record<string, string> {
+function getHeaders(token?: string, ifModifiedSince?: string): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   };
   if (token && token.trim()) {
     headers['Authorization'] = `Bearer ${token.trim()}`;
+  }
+  if (ifModifiedSince) {
+    headers['If-Modified-Since'] = ifModifiedSince;
   }
   return headers;
 }
@@ -199,8 +203,13 @@ export async function createGist(
 
 /**
  * Fetches all files and contents from an existing Gist.
+ * Supports conditional fetching via options.ifModifiedSince (returns notModified: true on HTTP 304).
  */
-export async function fetchGist(gistId: string, token?: string): Promise<GistActionResult> {
+export async function fetchGist(
+  gistId: string,
+  token?: string,
+  options?: { ifModifiedSince?: string }
+): Promise<GistActionResult> {
   const cleanId = extractGistId(gistId);
   if (!cleanId) {
     return { success: false, error: 'Invalid Gist ID provided.' };
@@ -212,10 +221,18 @@ export async function fetchGist(gistId: string, token?: string): Promise<GistAct
   try {
     const res = await fetch(`https://api.github.com/gists/${cleanId}`, {
       method: 'GET',
-      headers: getHeaders(token),
+      headers: getHeaders(token, options?.ifModifiedSince),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
+
+    if (res.status === 304) {
+      return {
+        success: true,
+        notModified: true,
+        gistId: cleanId,
+      };
+    }
 
     if (!res.ok) {
       const errorMsg = await parseErrorMessage(res);
@@ -411,26 +428,12 @@ export async function findSiteGist(
       return { success: true, gist: undefined };
     }
 
-    // 1. Primary check: exact description match (e.g. `Learn Rust Progress & Settings Backup`)
-    for (const g of gists) {
-      if (g.description === GIST_DEFAULT_DESCRIPTION) {
-        return {
-          success: true,
-          gist: {
-            gistId: g.id,
-            htmlUrl: g.html_url,
-            updatedAt: g.updated_at,
-            description: g.description,
-            filenames: Object.keys(g.files || {}),
-          },
-        };
-      }
-    }
+    const targetMetadataFilename = `_${SITE_SLUG}.json`;
 
-    // 2. Secondary check: files matching modern layout
+    // 1. Primary check: Gist contains this site's exact metadata signature file (e.g. `_codebook.json` or `_learn-rust.json`)
     for (const g of gists) {
       const files = g.files || {};
-      if (files[`_${SITE_SLUG}.json`] || files['lessons.json']) {
+      if (files[targetMetadataFilename]) {
         return {
           success: true,
           gist: {
@@ -441,6 +444,28 @@ export async function findSiteGist(
             filenames: Object.keys(files),
           },
         };
+      }
+    }
+
+    // 2. Secondary check: exact description match AND has no conflicting _foreign-slug.json metadata file
+    for (const g of gists) {
+      if (g.description === GIST_DEFAULT_DESCRIPTION) {
+        const files = g.files || {};
+        const foreignMetaFile = Object.keys(files).find(
+          (fn) => fn.startsWith('_') && fn.endsWith('.json') && fn !== targetMetadataFilename
+        );
+        if (!foreignMetaFile) {
+          return {
+            success: true,
+            gist: {
+              gistId: g.id,
+              htmlUrl: g.html_url,
+              updatedAt: g.updated_at,
+              description: g.description,
+              filenames: Object.keys(files),
+            },
+          };
+        }
       }
     }
 

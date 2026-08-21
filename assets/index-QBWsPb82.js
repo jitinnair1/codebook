@@ -420,7 +420,7 @@ ALL TESTS PASSED!`;let n=t.includes(e);Y.getState().markComplete(e),n?pg(`Passed
                 <a href="${t}/issues" target="_blank">Report an Error</a>
             </span>
             <span id="build-date" class="w-full sm:w-auto text-xs text-fg-muted order-last text-center">
-              Last updated on August 20, 2026
+              Last updated on August 21, 2026
             </span>
         </div>
     `}function nD(e){return e?e.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g,``).replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g,``).replace(/[\u200B-\u200D\uFEFF]/g,``).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,``):``}async function rD(e){try{let t=nD(e);if(navigator.clipboard&&window.isSecureContext)return await navigator.clipboard.writeText(t),!0;{let e=document.createElement(`textarea`);e.value=t,e.style.position=`fixed`,e.style.left=`-999999px`,e.style.top=`-999999px`,e.setAttribute(`readonly`,``),document.body.appendChild(e),e.focus(),e.select();let n=document.execCommand(`copy`);return document.body.removeChild(e),n}}catch(e){return console.error(`[clipboard] Failed to copy text safely:`,e),!1}}function iD(){let{currentExerciseId:e,currentLanguageId:t}=Y.getState(),n=Eh.find(t=>t.id===e),r=n?.title||`Unknown Exercise`,i=n?.description||``,a=n?Xh(n,t):null,o=a?.initialCode||``,s=a?.testCode||``,c=a?.validatorCode||``,l=fC()||o,u=mC(),d=$.console?.textContent?.trim()||``;return d===`// Ready...`&&(d=``),{systemPrompt:`You are an expert mentor and pair programmer.

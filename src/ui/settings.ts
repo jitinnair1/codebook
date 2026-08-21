@@ -1208,6 +1208,7 @@ async function handleManualGistConnect() {
                 autoSync: true,
                 lastSyncedAt: now,
             });
+            showPopup('Syncing from GitHub...');
             const res = await pullFromGist({ smartMerge: true });
             if (res.success) {
                 showGistStatus('Connected and pulled from Gist successfully.');

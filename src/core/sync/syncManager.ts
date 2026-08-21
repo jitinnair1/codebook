@@ -349,6 +349,7 @@ export async function handleOAuthCallback(): Promise<boolean> {
   window.history.replaceState({}, document.title, cleanUrl);
 
   setSyncStatus('syncing', 'Signing in with GitHub...');
+  showPopup('Syncing from GitHub...');
 
   try {
     const exchangeRes = await exchangeOAuthCode(GITHUB_OAUTH_WORKER_URL, code);

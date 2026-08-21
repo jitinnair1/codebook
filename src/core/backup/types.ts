@@ -50,12 +50,8 @@ export interface ConversationsPayload {
   conversations: SavedConversation[];
 }
 
-export interface EditorSettingsPayload {
-  vimMode: boolean;
-}
-
 export interface SettingsPayload {
-  editor: EditorSettingsPayload;
+  vimMode: boolean;
   chatSettings: ChatSettings;
   gistSyncSettings: GistSyncSettings;
 }

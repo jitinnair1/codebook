@@ -46,20 +46,61 @@ export function exportConversations(state: AppState): ConversationsPayload {
 function extractRawConversationList(raw: unknown): any[] {
   if (!raw || typeof raw !== 'object') return [];
 
+  // Case A: Gist / Export Payload ({ conversations: [...] })
   if (Array.isArray((raw as any).conversations)) {
     return (raw as any).conversations;
   }
+
+  // Case B: AppState ({ chatConversations: { [lessonSlug]: [...] } })
+  if ((raw as any).chatConversations && typeof (raw as any).chatConversations === 'object') {
+    const list: any[] = [];
+    for (const [slug, convList] of Object.entries((raw as any).chatConversations)) {
+      if (Array.isArray(convList)) {
+        for (const c of convList) {
+          if (c && typeof c === 'object') {
+            list.push({
+              ...c,
+              lessonSlug: (c as any).lessonSlug || (c as any).exerciseId || slug,
+            });
+          }
+        }
+      }
+    }
+    return list;
+  }
+
+  // Case C: Array passed directly
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+
   return [];
 }
 
 export function sanitizeConversations(raw: unknown, current: AppState): Partial<AppState> {
+  if (!raw || typeof raw !== 'object') {
+    return {};
+  }
+
   const rawList = extractRawConversationList(raw);
-  if (rawList.length === 0 && (!raw || typeof raw !== 'object' || !(raw as any).conversations)) {
+  const hasConversationsKey =
+    Array.isArray((raw as any).conversations) ||
+    ((raw as any).chatConversations && typeof (raw as any).chatConversations === 'object') ||
+    Array.isArray(raw);
+
+  if (rawList.length === 0 && !hasConversationsKey) {
     return {};
   }
 
   const restoredConvs: Record<string, ChatConversation[]> = {};
-  const restoredActive: Record<string, string> = { ...(current.activeConversationId || {}) };
+  const incomingActive =
+    (raw as any).activeConversationId && typeof (raw as any).activeConversationId === 'object'
+      ? (raw as any).activeConversationId
+      : {};
+  const restoredActive: Record<string, string> = {
+    ...(current.activeConversationId || {}),
+    ...incomingActive,
+  };
 
   for (const item of rawList) {
     if (!item || typeof item !== 'object') continue;

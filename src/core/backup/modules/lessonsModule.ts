@@ -77,14 +77,18 @@ export function sanitizeLessons(raw: unknown, current: AppState): Partial<AppSta
   const payload = raw as any;
 
   const rawActiveLesson =
-    typeof payload.activeLessonSlug === 'string' && isValidExerciseId(payload.activeLessonSlug)
+    typeof payload.currentExerciseId === 'string' && isValidExerciseId(payload.currentExerciseId)
+      ? payload.currentExerciseId
+      : typeof payload.activeLessonSlug === 'string' && isValidExerciseId(payload.activeLessonSlug)
       ? payload.activeLessonSlug
       : isValidExerciseId(current.currentExerciseId)
       ? current.currentExerciseId
       : exercises[0]?.id || '';
 
   const resolvedActiveLang =
-    typeof payload.activeLanguageId === 'string' && payload.activeLanguageId
+    typeof payload.currentLanguageId === 'string' && payload.currentLanguageId
+      ? payload.currentLanguageId
+      : typeof payload.activeLanguageId === 'string' && payload.activeLanguageId
       ? payload.activeLanguageId
       : current.currentLanguageId;
 
@@ -113,6 +117,37 @@ export function sanitizeLessons(raw: unknown, current: AppState): Partial<AppSta
               userCodeTimestamps[key] = itemUpdatedAt;
             }
           }
+        }
+      }
+    }
+  } else {
+    if (Array.isArray(payload.completedIds)) {
+      for (const id of payload.completedIds) {
+        if (typeof id === 'string' && isValidExerciseId(id.trim())) {
+          completedSet.add(id.trim());
+        }
+      }
+    }
+
+    if (payload.userCode && typeof payload.userCode === 'object') {
+      for (const [key, code] of Object.entries(payload.userCode)) {
+        if (typeof key === 'string' && typeof code === 'string' && code.trim()) {
+          const colonIdx = key.indexOf(':');
+          if (colonIdx !== -1) {
+            const lessonSlug = key.slice(0, colonIdx).trim();
+            const langId = key.slice(colonIdx + 1).trim();
+            if (isValidExerciseId(lessonSlug) && langId) {
+              userCode[`${lessonSlug}:${langId}`] = code;
+            }
+          }
+        }
+      }
+    }
+
+    if (payload.userCodeTimestamps && typeof payload.userCodeTimestamps === 'object') {
+      for (const [key, ts] of Object.entries(payload.userCodeTimestamps)) {
+        if (typeof key === 'string' && typeof ts === 'number' && ts > 0) {
+          userCodeTimestamps[key] = ts;
         }
       }
     }

@@ -197,7 +197,7 @@ export async function pullFromGist(options?: { smartMerge?: boolean }): Promise<
       return { success: false, error: errorMsg };
     }
 
-    store.getState().restoreBackup(parsed.data);
+    store.setState(parsed.data);
 
     const now = Date.now();
     store.getState().setGistSyncSettings({ lastSyncedAt: now, enabled: true });
@@ -495,7 +495,7 @@ export async function pullAndMergeIfNeeded(
     const currentState = store.getState();
     const parsed = parseAndMergeGistFiles(res.files, currentState, true);
     if (parsed && parsed.data) {
-      store.getState().restoreBackup(parsed.data);
+      store.setState(parsed.data);
       const syncNow = Date.now();
       store.getState().setGistSyncSettings({ lastSyncedAt: syncNow });
       setSyncStatus('synced', 'Synced with cloud.', syncNow);

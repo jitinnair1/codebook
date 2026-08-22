@@ -6,8 +6,10 @@ import harness from './harness.ts?raw';
 //JN: This needs to be cleaned up later. Right now, the native ts does not ship with `typescript.js` and
 //vfs fetches from CDN by design to reduce bundle size.
 const TS_VERSION = '6.0.3';
-const TS_CDN_URL = `https://cdn.jsdelivr.net/npm/typescript@${TS_VERSION}/lib/typescript.min.js`;
-const TS_LIB_CDN = `https://cdn.jsdelivr.net/npm/typescript@${TS_VERSION}/lib/`;
+const TS_LOCAL_BASE = typeof self !== 'undefined' && self.location
+  ? new URL('/typescript/', self.location.href).href
+  : '/typescript/';
+const TS_COMPILER_URL = `${TS_LOCAL_BASE}typescript.min.js`;
 
 let ts: any = null;
 let cachedFsMap: Map<string, string> = new Map();
@@ -37,7 +39,7 @@ async function loadTypeScriptCompiler(): Promise<any> {
     return (self as any).ts;
   }
 
-  const response = await fetch(TS_CDN_URL);
+  const response = await fetch(TS_COMPILER_URL);
   if (!response.ok) {
     throw new Error(`Failed to fetch TypeScript compiler: HTTP ${response.status}`);
   }
@@ -74,7 +76,7 @@ createWorkerHandler({
 
     const customFetcher = async (url: string) => {
       const fileName = url.substring(url.lastIndexOf('/') + 1);
-      const res = await fetch(TS_LIB_CDN + fileName);
+      const res = await fetch(`${TS_LOCAL_BASE}${fileName}`);
       if (!res.ok) {
         throw new Error(`Failed to fetch library file ${fileName}: HTTP ${res.status}`);
       }

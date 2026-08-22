@@ -69,7 +69,7 @@ _codebook_mypy_check
 `;
 
 /**
- * Initializes micropip and mypy inside the provided Pyodide instance.
+ * Initializes Mypy from local bundled wheels inside the provided Pyodide instance.
  */
 export async function initMypy(pyodide: any): Promise<void> {
   if (mypyReady) {
@@ -82,11 +82,18 @@ export async function initMypy(pyodide: any): Promise<void> {
 
   mypyInitPromise = (async () => {
     try {
-      await pyodide.loadPackage('micropip');
-      await pyodide.runPythonAsync(`
-import micropip
-await micropip.install(['typing_extensions', 'mypy_extensions', 'pathspec', 'mypy'])
-`);
+      const wheelBase = typeof self !== 'undefined' && self.location
+        ? new URL('/wheels/', self.location.href).href
+        : '/wheels/';
+
+      const wheelFiles = [
+        `${wheelBase}typing_extensions-4.16.0-py3-none-any.whl`,
+        `${wheelBase}mypy_extensions-1.1.0-py3-none-any.whl`,
+        `${wheelBase}pathspec-1.1.1-py3-none-any.whl`,
+        `${wheelBase}mypy-2.3.1-py3-none-any.whl`,
+      ];
+
+      await pyodide.loadPackage(wheelFiles);
       pyodide.runPython(MYPY_BRIDGE_PYTHON);
       mypyReady = true;
     } catch (err) {

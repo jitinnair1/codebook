@@ -158,6 +158,8 @@ export function getLanguageExtension(id: string): Extension {
 
 let isPrewarming = false;
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export async function prewarmBackgroundLanguages(activeLangId?: string): Promise<void> {
   if (isPrewarming) return;
   isPrewarming = true;
@@ -167,6 +169,8 @@ export async function prewarmBackgroundLanguages(activeLangId?: string): Promise
 
   for (const langId of otherLangIds) {
     try {
+      // Yield to browser event loop before initializing next worker
+      await sleep(150);
       const runner = await loadLanguageRunner(langId);
       if (runner.whenReady) {
         await runner.whenReady();

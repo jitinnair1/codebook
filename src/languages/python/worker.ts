@@ -21,10 +21,12 @@ async function setupPyodide(): Promise<any> {
   }
 
   pyodideInitPromise = (async () => {
+    const pyodideUrl = typeof self !== 'undefined' && self.location
+      ? new URL('/pyodide/', self.location.href).href
+      : '/pyodide/';
+
     const instance = await loadPyodide({
-      // JN: We specify the url here since by default it looks to fetch assets from
-      // bundled module path which fails on deployment.
-      indexURL: 'https://cdn.jsdelivr.net/pyodide/v314.0.5/full/'
+      indexURL: pyodideUrl
     });
 
     instance.setStdout({
@@ -43,9 +45,6 @@ async function setupPyodide(): Promise<any> {
       }
     });
 
-    // Initialize micropip and Mypy inside Pyodide
-    await initMypy(instance);
-
     pyodideInstance = instance;
     return instance;
   })();
@@ -55,11 +54,18 @@ async function setupPyodide(): Promise<any> {
 
 createWorkerHandler({
   async init() {
-    // Pre-warm Ruff WASM and Pyodide + Mypy concurrently
-    await Promise.all([
+    // 1. Pre-warm Ruff WASM and Pyodide concurrently for instant readiness
+    const [, instance] = await Promise.all([
       initRuffLinter(),
       setupPyodide()
     ]);
+
+    // 2. Pre-load Mypy wheels in background (non-blocking so READY event fires immediately)
+    if (instance) {
+      initMypy(instance).catch((err) => {
+        console.warn('[Python Worker Background Mypy Warmup]:', err);
+      });
+    }
   },
 
   async execute(userCode: string, testCode: string = '') {

@@ -559,7 +559,7 @@ function bindPanelEvents() {
     input.addEventListener('input', handleInputResize);
 
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
         e.preventDefault();
         submitUserMessage();
       }
@@ -679,13 +679,32 @@ function handleRetryFailedMessage(errorMsgId: string) {
 }
 
 async function submitUserMessage() {
+  const input = elements.chat.input;
+  if (!input) return;
+
+  const content = input.value.trim();
+  if (!content) return;
+
   const state = store.getState();
-  const currentExId = store.getState().currentExerciseId;
+  const currentExId = state.currentExerciseId;
   const currentLangId = state.currentLanguageId;
 
   ensureActiveConversation();
-  let activeConv = store.getState().getActiveConversation(currentExId);
-  if (!activeConv) return;
+  let activeConv = state.getActiveConversation(currentExId);
+
+  // If no conversation exists yet for this exercise, create one lazily
+  if (!activeConv) {
+    const newConvId = store.getState().createConversation(currentExId, currentLangId, 'Chat');
+    activeConv = store.getState().getActiveConversation(currentExId) || {
+      id: newConvId,
+      exerciseId: currentExId,
+      languageId: currentLangId,
+      title: 'Chat',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: [],
+    };
+  }
 
   // Language auto-switch check before sending:
   // If active conversation has messages and belongs to a different language, automatically branch to new language
@@ -718,12 +737,6 @@ async function submitUserMessage() {
     abortCurrentGeneration(convId);
     return;
   }
-
-  const input = elements.chat.input;
-  if (!input) return;
-
-  const content = input.value.trim();
-  if (!content) return;
 
   // Flush any pending auto-save from the active editor so store is 100% up to date
   flushAutoSave();

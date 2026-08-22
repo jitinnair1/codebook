@@ -43,9 +43,6 @@ async function setupPyodide(): Promise<any> {
       }
     });
 
-    // Initialize micropip and Mypy inside Pyodide
-    await initMypy(instance);
-
     pyodideInstance = instance;
     return instance;
   })();
@@ -55,11 +52,18 @@ async function setupPyodide(): Promise<any> {
 
 createWorkerHandler({
   async init() {
-    // Pre-warm Ruff WASM and Pyodide + Mypy concurrently
-    await Promise.all([
+    // 1. Pre-warm Ruff WASM and Pyodide concurrently for instant READY status
+    const [, instance] = await Promise.all([
       initRuffLinter(),
       setupPyodide()
     ]);
+
+    // 2. Pre-load Mypy in the background without blocking the worker's READY event
+    if (instance) {
+      initMypy(instance).catch((err) => {
+        console.warn('[Python Worker Background Mypy Warmup]:', err);
+      });
+    }
   },
 
   async execute(userCode: string, testCode: string = '') {

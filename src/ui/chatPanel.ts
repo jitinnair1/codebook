@@ -87,13 +87,7 @@ export function initChatPanel() {
         syncPanelVisibility();
       }
 
-      // Auto-switch conversation if language changed
-      if (lastRenderedLanguageId !== null && currentLangId !== lastRenderedLanguageId) {
-        lastRenderedLanguageId = currentLangId;
-        handleLanguageSwitch(currentExId, currentLangId);
-      } else {
-        lastRenderedLanguageId = currentLangId;
-      }
+      lastRenderedLanguageId = currentLangId;
 
       ensureActiveConversation();
 
@@ -155,37 +149,6 @@ function ensureActiveConversation() {
     const activeId = state.activeConversationId[currentExId];
     if (!activeId || !convs.some(c => c.id === activeId)) {
       store.getState().setActiveConversation(currentExId, convs[0].id);
-    }
-  }
-}
-
-/**
- * Automatically branches / routes to a new conversation when user switches languages
- */
-function handleLanguageSwitch(exerciseId: string, newLanguageId: string) {
-  const state = store.getState();
-  const convs = state.chatConversations[exerciseId] || [];
-  const activeConv = state.getActiveConversation(exerciseId);
-
-  if (!activeConv) return;
-
-  // If current conversation is completely empty, simply update its language tag
-  if (activeConv.messages.length === 0) {
-    if (activeConv.languageId !== newLanguageId) {
-      store.getState().updateConversationLanguage(exerciseId, activeConv.id, newLanguageId);
-    }
-    return;
-  }
-
-  // If current conversation belongs to a different language and has messages:
-  if (activeConv.languageId !== newLanguageId) {
-    // Check if there is already an existing conversation for this new language
-    const existingLangConv = convs.slice().reverse().find(c => c.languageId === newLanguageId);
-    if (existingLangConv) {
-      store.getState().setActiveConversation(exerciseId, existingLangConv.id);
-    } else {
-      // Create a new clean conversation tagged with the new language
-      store.getState().createConversation(exerciseId, newLanguageId, 'Chat');
     }
   }
 }
@@ -704,31 +667,6 @@ async function submitUserMessage() {
       updatedAt: Date.now(),
       messages: [],
     };
-  }
-
-  // Language auto-switch check before sending:
-  // If active conversation has messages and belongs to a different language, automatically branch to new language
-  if (activeConv.messages.length > 0 && activeConv.languageId !== currentLangId) {
-    const convs = store.getState().chatConversations[currentExId] || [];
-    const existingLangConv = convs.slice().reverse().find(c => c.languageId === currentLangId);
-    if (existingLangConv) {
-      store.getState().setActiveConversation(currentExId, existingLangConv.id);
-      activeConv = existingLangConv;
-    } else {
-      const newConvId = store.getState().createConversation(currentExId, currentLangId, 'Chat');
-      activeConv = store.getState().getActiveConversation(currentExId) || {
-        id: newConvId,
-        exerciseId: currentExId,
-        languageId: currentLangId,
-        title: 'Chat',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        messages: [],
-      };
-    }
-  } else if (activeConv.messages.length === 0 && activeConv.languageId !== currentLangId) {
-    store.getState().updateConversationLanguage(currentExId, activeConv.id, currentLangId);
-    activeConv.languageId = currentLangId;
   }
 
   const convId = activeConv.id;

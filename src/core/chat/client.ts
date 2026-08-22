@@ -50,10 +50,14 @@ export async function streamCompletion(options: StreamOptions): Promise<string> 
     .filter(m => m.role === 'user' || m.role === 'assistant')
     .map(m => ({ role: m.role, content: m.content }));
 
+  // Check if the current user prompt is already recorded in history
+  const lastMsg = history[history.length - 1];
+  const isAlreadyInHistory = lastMsg && lastMsg.role === 'user' && lastMsg.content === userPrompt;
+
   const messages = [
     { role: 'system', content: systemPrompt },
     ...history,
-    { role: 'user', content: userPrompt },
+    ...(isAlreadyInHistory ? [] : [{ role: 'user', content: userPrompt }]),
   ];
 
   const headers: Record<string, string> = {

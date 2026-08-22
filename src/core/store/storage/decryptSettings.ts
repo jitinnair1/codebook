@@ -3,7 +3,22 @@ import { StoreApi } from 'zustand/vanilla';
 import { decryptSecret } from '../../crypto';
 import { AppState } from '../../types';
 
+let decryptionPromise: Promise<void> | null = null;
+
+export function ensureSettingsDecrypted(storeApi?: StoreApi<AppState> | { getState: () => AppState }): Promise<void> {
+  if (!decryptionPromise) {
+    if (storeApi) {
+      decryptionPromise = decryptStoredSettings(storeApi);
+    } else {
+      return Promise.resolve();
+    }
+  }
+  return decryptionPromise;
+}
+
 export async function decryptStoredSettings(storeApi: StoreApi<AppState> | { getState: () => AppState }): Promise<void> {
+  if (!decryptionPromise) {
+    decryptionPromise = (async () => {
   // 1. Decrypt Chat Settings
   const currentChat = storeApi.getState().chatSettings;
   if (currentChat) {
@@ -46,4 +61,8 @@ export async function decryptStoredSettings(storeApi: StoreApi<AppState> | { get
       token: decryptedToken,
     });
   }
+    })();
+  }
+  return decryptionPromise;
 }
+

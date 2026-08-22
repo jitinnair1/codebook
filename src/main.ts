@@ -1,5 +1,5 @@
 import './input.css';
-import { store, decryptStoredSettings } from './core/store';
+import { store, ensureSettingsDecrypted } from './core/store';
 import { initStartupSync } from './core/sync/syncManager';
 import { exercises, curriculum, getExerciseDisplayNumber } from './exercises/exercise-registry';
 import { getExerciseVariant } from './core/types';
@@ -218,7 +218,7 @@ if (hashId && exercises.some(e => e.id === hashId)) {
 render();
 
 //kick off background credential decryption and startup sync (non-blocking)
-decryptStoredSettings(store)
+ensureSettingsDecrypted(store)
     .then(() => initStartupSync())
     .catch((err) => {
         console.warn('[main] Startup decryption or sync check failed:', err);

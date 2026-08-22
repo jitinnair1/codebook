@@ -7,7 +7,7 @@ import { createSettingsSlice } from './store/slices/settingsSlice';
 import { createSyncSlice } from './store/slices/syncSlice';
 import { getInitialProgressState, sanitizeBackupData } from './store/backup';
 import { syncStateStorage } from './store/storage/encryptedStorage';
-import { decryptStoredSettings } from './store/storage/decryptSettings';
+import { decryptStoredSettings, ensureSettingsDecrypted } from './store/storage/decryptSettings';
 import { SITE_SLUG } from './siteConfig';
 
 export const STORAGE_KEY = `${SITE_SLUG}_storage`;
@@ -43,5 +43,6 @@ export const store = createStore<AppState>()(
 );
 
 export * from './types';
-export { decryptStoredSettings };
+export { decryptStoredSettings, ensureSettingsDecrypted };
+
 

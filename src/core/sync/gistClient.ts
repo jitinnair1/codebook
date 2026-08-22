@@ -72,7 +72,7 @@ function getHeaders(token?: string, ifModifiedSince?: string): Record<string, st
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   };
-  if (token && token.trim()) {
+  if (token && token.trim() && !token.startsWith('enc:v1:')) {
     headers['Authorization'] = `Bearer ${token.trim()}`;
   }
   if (ifModifiedSince) {
@@ -106,8 +106,8 @@ async function parseErrorMessage(res: Response): Promise<string> {
  * Validates a GitHub Personal Access Token against the GitHub API.
  */
 export async function validateToken(token: string): Promise<TokenValidationResult> {
-  if (!token || !token.trim()) {
-    return { valid: false, error: 'Token cannot be empty.' };
+  if (!token || !token.trim() || token.startsWith('enc:v1:')) {
+    return { valid: false, error: 'Token cannot be empty or un-decrypted.' };
   }
 
   const controller = new AbortController();
@@ -152,7 +152,7 @@ export async function createGist(
   files: Record<string, string>,
   description = GIST_DEFAULT_DESCRIPTION
 ): Promise<GistActionResult> {
-  if (!token || !token.trim()) {
+  if (!token || !token.trim() || token.startsWith('enc:v1:')) {
     return { success: false, error: 'GitHub token is required to create a Gist.' };
   }
 
@@ -249,7 +249,7 @@ export async function fetchGist(
       if (fileObj.truncated && fileObj.raw_url) {
         try {
           const rawRes = await fetch(fileObj.raw_url, {
-            headers: token ? { Authorization: `Bearer ${token.trim()}` } : {},
+            headers: (token && !token.startsWith('enc:v1:')) ? { Authorization: `Bearer ${token.trim()}` } : {},
           });
           if (rawRes.ok) {
             content = await rawRes.text();
@@ -298,7 +298,7 @@ export async function updateGist(
   if (!cleanId) {
     return { success: false, error: 'Invalid Gist ID provided.' };
   }
-  if (!token || !token.trim()) {
+  if (!token || !token.trim() || token.startsWith('enc:v1:')) {
     return { success: false, error: 'GitHub token is required to update a Gist.' };
   }
 
@@ -403,7 +403,7 @@ export async function exchangeOAuthCode(
 export async function findSiteGist(
   token: string
 ): Promise<{ success: boolean; gist?: DiscoveredGist; error?: string }> {
-  if (!token || !token.trim()) {
+  if (!token || !token.trim() || token.startsWith('enc:v1:')) {
     return { success: false, error: 'GitHub token is required.' };
   }
 

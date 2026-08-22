@@ -1,6 +1,6 @@
 //TODO: Are there portions here that can be pushed off to index.html?
 import { elements } from '../core/elements';
-import { store, ChatSettings, ChatEndpoint, GistSyncSettings } from '../core/store';
+import { store, ensureSettingsDecrypted, ChatSettings, ChatEndpoint, GistSyncSettings } from '../core/store';
 import { updateEditorVimMode } from '../core/editor';
 import { decryptSecret } from '../core/crypto';
 import { ICONS } from './icons';
@@ -9,7 +9,7 @@ import { showConfirmDialog } from './resetProgress';
 import { showPopup } from './popup';
 import { pullFromGist, pushToGist, initiateOAuthLogin, subscribeSyncStatus, getSyncStatus, SyncStateEvent, createAndLinkGist } from '../core/sync/syncManager';
 import { validateToken, extractGistId } from '../core/sync/gistClient';
-import { SITE_TITLE, SITE_SLUG } from '../core/siteConfig';
+import { SITE_SLUG } from '../core/siteConfig';
 import { buildManualExportPayload, parseManualImport } from '../core/backup';
 
 let cachedModels: string[] = [];
@@ -860,8 +860,8 @@ function showBackupStatus(message: string, isError: boolean = false) {
     if (!el) return;
     el.textContent = message;
     el.className = `text-xs rounded-md p-2 transition-all ${isError
-            ? 'bg-red-500/10 border border-red-500/20 text-red-400 block'
-            : 'bg-green-500/10 border border-green-500/20 text-green-400 block'
+        ? 'bg-red-500/10 border border-red-500/20 text-red-400 block'
+        : 'bg-green-500/10 border border-green-500/20 text-green-400 block'
         }`;
     setTimeout(() => {
         if (el.textContent === message) {
@@ -979,7 +979,7 @@ function handleClearLocalStorage() {
             abortAllStreams();
             try {
                 store.getState().unlinkGist();
-            } catch {}
+            } catch { }
             localStorage.clear();
             window.location.reload();
         },
@@ -1087,14 +1087,19 @@ function renderGistSection(settings: GistSyncSettings) {
                 usernameEl.textContent = `Connected as @${cachedGitHubUsername}`;
             } else {
                 usernameEl.textContent = 'Connected to GitHub';
-                validateToken(settings.token).then((res) => {
-                    if (res.valid && res.username) {
-                        cachedGitHubUsername = res.username;
-                        if (usernameEl) {
-                            usernameEl.textContent = `Connected as @${res.username}`;
-                        }
+                ensureSettingsDecrypted().then(() => {
+                    const activeToken = store.getState().gistSyncSettings?.token;
+                    if (activeToken && !activeToken.startsWith('enc:v1:')) {
+                        validateToken(activeToken).then((res) => {
+                            if (res.valid && res.username) {
+                                cachedGitHubUsername = res.username;
+                                if (usernameEl) {
+                                    usernameEl.textContent = `Connected as @${res.username}`;
+                                }
+                            }
+                        }).catch(() => { });
                     }
-                }).catch(() => {});
+                }).catch(() => { });
             }
         }
     } else {
@@ -1130,11 +1135,10 @@ function showGistStatus(message: string, isError = false) {
     const el = elements.settings.gistStatusMsg;
     if (!el) return;
     el.textContent = message;
-    el.className = `text-xs rounded-md p-2 transition-all ${
-        isError
+    el.className = `text-xs rounded-md p-2 transition-all ${isError
             ? 'bg-red-500/10 border border-red-500/20 text-red-400 block'
             : 'bg-green-500/10 border border-green-500/20 text-green-400 block'
-    }`;
+        }`;
     setTimeout(() => {
         if (el.textContent === message) {
             el.className = 'hidden text-xs rounded-md p-2';

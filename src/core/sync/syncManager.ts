@@ -1,6 +1,6 @@
 // src/core/sync/syncManager.ts
 import { GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_WORKER_URL } from './oauthConfig';
-import { store } from '../store';
+import { store, ensureSettingsDecrypted } from '../store';
 import { createGist, fetchGist, updateGist, exchangeOAuthCode, findSiteGist, GistActionResult } from './gistClient';
 import { buildGistFiles, parseAndMergeGistFiles, BACKUP_FILENAMES } from '../backup';
 import { SITE_SLUG, SITE_TITLE } from '../siteConfig';
@@ -85,9 +85,17 @@ export async function pushToGist(): Promise<GistActionResult> {
     return { success: false, error: 'Offline' };
   }
 
+  if (store.getState().gistSyncSettings?.token?.startsWith('enc:v1:')) {
+    await ensureSettingsDecrypted();
+  }
+
   const { gistSyncSettings } = store.getState();
   if (!gistSyncSettings?.enabled || !gistSyncSettings?.token || !gistSyncSettings?.gistId) {
     return { success: false, error: 'Gist sync is not configured or enabled.' };
+  }
+
+  if (gistSyncSettings.token.startsWith('enc:v1:')) {
+    return { success: false, error: 'GitHub credentials are not yet decrypted.' };
   }
 
   if (isSyncInProgress) {
@@ -159,6 +167,10 @@ export async function pullFromGist(options?: { smartMerge?: boolean }): Promise<
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     setSyncStatus('offline', 'Cannot sync while offline.');
     return { success: false, error: 'Offline' };
+  }
+
+  if (store.getState().gistSyncSettings?.token?.startsWith('enc:v1:')) {
+    await ensureSettingsDecrypted();
   }
 
   const { gistSyncSettings } = store.getState();
@@ -403,8 +415,13 @@ export async function handleOAuthCallback(): Promise<boolean> {
  */
 export async function checkAndPullOnFocus(): Promise<void> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+  if (store.getState().gistSyncSettings?.token?.startsWith('enc:v1:')) {
+    await ensureSettingsDecrypted();
+  }
+
   const { gistSyncSettings } = store.getState();
-  if (!gistSyncSettings?.enabled || !gistSyncSettings?.token || !gistSyncSettings?.gistId) return;
+  if (!gistSyncSettings?.enabled || !gistSyncSettings?.token || !gistSyncSettings?.gistId || gistSyncSettings.token.startsWith('enc:v1:')) return;
 
   // Guard: Do not pull if a sync is already in progress or user is actively typing
   if (isSyncInProgress || autoPushTimeout !== null) return;
@@ -446,6 +463,10 @@ export async function initStartupSync(): Promise<void> {
 
   // Handle any OAuth redirect callback first
   const handledAuth = await handleOAuthCallback();
+
+  if (store.getState().gistSyncSettings?.token?.startsWith('enc:v1:')) {
+    await ensureSettingsDecrypted();
+  }
 
   const { gistSyncSettings } = store.getState();
   if (!gistSyncSettings?.enabled || !gistSyncSettings?.gistId) {

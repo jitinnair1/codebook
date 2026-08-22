@@ -7,8 +7,8 @@ let isListenerBound = false;
 export function renderProgressBar(
     container: HTMLElement | null,
     curriculum: Chapter[],
-    currentExerciseId: string,
-    completedIds: string[]
+    activeLessonSlug: string,
+    completedSlugs: string[]
 ) {
     if (!container) return;
 
@@ -25,16 +25,16 @@ export function renderProgressBar(
         });
     }
 
-    const currentChapter = curriculum.find(c => c.exercises.some(e => e.id === currentExerciseId));
+    const currentChapter = curriculum.find(c => c.exercises.some(e => e.id === activeLessonSlug));
     if (currentChapter) {
         const total = currentChapter.exercises.length;
-        const nextUncompletedIndex = currentChapter.exercises.findIndex(e => !completedIds.includes(e.id));
+        const nextUncompletedIndex = currentChapter.exercises.findIndex(e => !completedSlugs.includes(e.id));
 
         container.innerHTML = currentChapter.exercises.map((e, idx) => {
-            const isCompleted = completedIds.includes(e.id);
+            const isCompleted = completedSlugs.includes(e.id);
             const isNext = idx === nextUncompletedIndex;
             const isLast = idx === total - 1;
-            const isActive = e.id === currentExerciseId;
+            const isActive = e.id === activeLessonSlug;
 
             //circle style
             let circleClass = 'border border-border-default bg-bg-surface';

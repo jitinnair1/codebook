@@ -135,8 +135,8 @@ export function flushAutoSave(targetExerciseId?: string, targetLanguageId?: stri
         autoSaveTimeout = null;
     }
     if (view) {
-        const { currentExerciseId, currentLanguageId } = store.getState();
-        const exId = targetExerciseId ?? activeExerciseId ?? currentExerciseId;
+        const { activeLessonSlug, currentLanguageId } = store.getState();
+        const exId = targetExerciseId ?? activeExerciseId ?? activeLessonSlug;
         const langId = targetLanguageId ?? activeLanguageId ?? currentLanguageId;
         if (exId && langId) {
             store.getState().saveUserCode(exId, langId, view.state.doc.toString());

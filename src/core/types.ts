@@ -62,7 +62,7 @@ export interface ChatMessage {
 
 export interface ChatConversation {
     id: string;
-    exerciseId: string;
+    lessonSlug: string;
     languageId: string;
     title: string;
     createdAt: number;
@@ -122,32 +122,32 @@ export const defaultGistSyncSettings: GistSyncSettings = {
 
 // Store Slices & Combined AppState
 export interface ExerciseSlice {
-    currentExerciseId: string;
+    activeLessonSlug: string;
     currentLanguageId: string;
-    completedIds: string[];
+    completedSlugs: string[];
     userCode: Record<string, string>;
     userCodeTimestamps?: Record<string, number>;
     vimMode: boolean;
-    markComplete: (id: string) => void;
-    setCurrent: (id: string) => void;
+    markComplete: (slug: string) => void;
+    setCurrent: (slug: string) => void;
     setLanguage: (langId: string) => void;
-    saveUserCode: (exerciseId: string, languageId: string, code: string) => void;
-    getUserCode: (exerciseId: string, languageId: string) => string | undefined;
+    saveUserCode: (lessonSlug: string, languageId: string, code: string) => void;
+    getUserCode: (lessonSlug: string, languageId: string) => string | undefined;
     setVimMode: (enabled: boolean) => void;
 }
 
 export interface ChatSlice {
     chatConversations: Record<string, ChatConversation[]>;
     activeConversationId: Record<string, string>;
-    createConversation: (exerciseId: string, languageId: string, title?: string) => string;
-    setActiveConversation: (exerciseId: string, conversationId: string) => void;
-    updateConversationLanguage: (exerciseId: string, conversationId: string, languageId: string) => void;
-    updateConversationTitle: (exerciseId: string, conversationId: string, title: string) => void;
-    deleteConversation: (exerciseId: string, conversationId: string) => void;
-    getActiveConversation: (exerciseId: string) => ChatConversation | undefined;
-    addChatMessage: (exerciseId: string, message: ChatMessage, conversationId?: string) => void;
-    removeChatMessages: (exerciseId: string, messageIds: string[], conversationId?: string) => void;
-    clearChatHistory: (exerciseId: string, conversationId?: string) => void;
+    createConversation: (lessonSlug: string, languageId: string, title?: string) => string;
+    setActiveConversation: (lessonSlug: string, conversationId: string) => void;
+    updateConversationLanguage: (lessonSlug: string, conversationId: string, languageId: string) => void;
+    updateConversationTitle: (lessonSlug: string, conversationId: string, title: string) => void;
+    deleteConversation: (lessonSlug: string, conversationId: string) => void;
+    getActiveConversation: (lessonSlug: string) => ChatConversation | undefined;
+    addChatMessage: (lessonSlug: string, message: ChatMessage, conversationId?: string) => void;
+    removeChatMessages: (lessonSlug: string, messageIds: string[], conversationId?: string) => void;
+    clearChatHistory: (lessonSlug: string, conversationId?: string) => void;
 }
 
 export interface SettingsSlice {

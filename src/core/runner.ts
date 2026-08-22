@@ -63,8 +63,8 @@ class Orchestrator {
             }
         }
 
-        const { currentExerciseId, currentLanguageId, completedIds } = store.getState();
-        const currentEx = exercises.find(e => e.id === currentExerciseId);
+        const { activeLessonSlug, currentLanguageId, completedSlugs } = store.getState();
+        const currentEx = exercises.find(e => e.id === activeLessonSlug);
         if (!currentEx) return;
 
         const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
@@ -77,7 +77,7 @@ class Orchestrator {
         try {
             //get code
             const userCode = getCode();
-            store.getState().saveUserCode(currentExerciseId, currentLanguageId, userCode);
+            store.getState().saveUserCode(activeLessonSlug, currentLanguageId, userCode);
 
             //run via adapter
             const finalTestCode = exerciseVariant.testCode || "";
@@ -108,7 +108,7 @@ class Orchestrator {
             }
 
             //success
-            this.handleSuccess(currentEx.id, completedIds);
+            this.handleSuccess(currentEx.id, completedSlugs);
 
         } catch (e: any) {
             this.handleError(e.message);
@@ -127,12 +127,12 @@ class Orchestrator {
         elements.console.textContent = "Runtime Error: " + msg;
     }
 
-    private handleSuccess(id: string, completedIds: string[]) {
+    private handleSuccess(slug: string, completedSlugs: string[]) {
         status.setPassed();
         elements.console.textContent += "\nALL TESTS PASSED!";
 
-        const alreadyCompleted = completedIds.includes(id);
-        store.getState().markComplete(id);
+        const alreadyCompleted = completedSlugs.includes(slug);
+        store.getState().markComplete(slug);
 
         if (!alreadyCompleted) {
             confetti();

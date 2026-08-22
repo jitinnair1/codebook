@@ -7,8 +7,8 @@ let isListenerBound = false;
 export function renderSidebar(
     sidebarEl: HTMLElement | null,
     curriculum: Chapter[],
-    currentExerciseId: string,
-    completedIds: string[]
+    activeLessonSlug: string,
+    completedSlugs: string[]
 ) {
     if (!sidebarEl) return;
 
@@ -37,8 +37,8 @@ export function renderSidebar(
         const chapterHeader = `<div class="px-8 py-1 pb-0 text-[10px] font-bold text-fg-muted uppercase">${chapter.title}</div>`;
 
         const chapterExercises = chapter.exercises.map((e, exIdx) => {
-            const isCompleted = completedIds.includes(e.id);
-            const active = e.id === currentExerciseId ? 'bg-bg-surface text-fg-primary border-l-2 border-brand' : 'text-fg-muted hover:text-fg-primary';
+            const isCompleted = completedSlugs.includes(e.id);
+            const active = e.id === activeLessonSlug ? 'bg-bg-surface text-fg-primary border-l-2 border-brand' : 'text-fg-muted hover:text-fg-primary';
             const completed = isCompleted ? 'opacity-40' : '';
             const displayNum = `${chIdx + 1}.${exIdx + 1}`;
 

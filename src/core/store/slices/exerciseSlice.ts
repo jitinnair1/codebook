@@ -6,27 +6,27 @@ import { AppState, ExerciseSlice } from '../../types';
 import { scheduleAutoPush, triggerImmediatePush } from '../../sync/syncManager';
 
 export const createExerciseSlice: StateCreator<AppState, [], [], ExerciseSlice> = (set, get) => ({
-  currentExerciseId: exercises[0]?.id || '',
+  activeLessonSlug: exercises[0]?.id || '',
   currentLanguageId: defaultLanguageId,
-  completedIds: [],
+  completedSlugs: [],
   userCode: {},
   userCodeTimestamps: {},
   vimMode: false,
 
-  markComplete: (id: string) => {
-    const { completedIds } = get();
-    if (!completedIds.includes(id)) {
-      set({ completedIds: [...completedIds, id] });
+  markComplete: (slug: string) => {
+    const { completedSlugs } = get();
+    if (!completedSlugs.includes(slug)) {
+      set({ completedSlugs: [...completedSlugs, slug] });
       triggerImmediatePush();
     }
   },
 
-  setCurrent: (id: string) => set({ currentExerciseId: id }),
+  setCurrent: (slug: string) => set({ activeLessonSlug: slug }),
 
   setLanguage: (langId: string) => set({ currentLanguageId: langId }),
 
-  saveUserCode: (exerciseId: string, languageId: string, code: string) => {
-    const key = `${exerciseId}:${languageId}`;
+  saveUserCode: (lessonSlug: string, languageId: string, code: string) => {
+    const key = `${lessonSlug}:${languageId}`;
     const now = Date.now();
     set({
       userCode: { ...get().userCode, [key]: code },
@@ -35,9 +35,9 @@ export const createExerciseSlice: StateCreator<AppState, [], [], ExerciseSlice> 
     scheduleAutoPush();
   },
 
-  getUserCode: (exerciseId: string, languageId: string) => {
+  getUserCode: (lessonSlug: string, languageId: string) => {
     const { userCode } = get();
-    const key = `${exerciseId}:${languageId}`;
+    const key = `${lessonSlug}:${languageId}`;
     return userCode[key];
   },
 

@@ -74,23 +74,23 @@ let lastRenderedCompletedIds: string[] = [];
 let lastRenderedUserCode: string | null = null;
 
 function render() {
-    const { currentExerciseId, currentLanguageId, completedIds } = store.getState();
+    const { activeLessonSlug, currentLanguageId, completedSlugs } = store.getState();
 
     const prevExerciseId = lastRenderedExerciseId;
     const prevLanguageId = lastRenderedLanguageId;
     const prevUserCode = lastRenderedUserCode;
 
-    const currentEx = exercises.find(e => e.id === currentExerciseId);
+    const currentEx = exercises.find(e => e.id === activeLessonSlug);
     if (!currentEx) return;
 
     const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
-    const currentUserCode = store.getState().getUserCode(currentExerciseId, currentLanguageId) || exerciseVariant.initialCode;
+    const currentUserCode = store.getState().getUserCode(activeLessonSlug, currentLanguageId) || exerciseVariant.initialCode;
 
     const isInitial = prevExerciseId === null || prevLanguageId === null;
-    const isExerciseChanged = prevExerciseId !== null && currentExerciseId !== prevExerciseId;
+    const isExerciseChanged = prevExerciseId !== null && activeLessonSlug !== prevExerciseId;
     const isLanguageChanged = prevLanguageId !== null && currentLanguageId !== prevLanguageId;
-    const isCompletedChanged = completedIds.length !== lastRenderedCompletedIds.length ||
-        completedIds.some((id, idx) => id !== lastRenderedCompletedIds[idx]);
+    const isCompletedChanged = completedSlugs.length !== lastRenderedCompletedIds.length ||
+        completedSlugs.some((id, idx) => id !== lastRenderedCompletedIds[idx]);
     const isUserCodeChanged = prevUserCode !== null && currentUserCode !== prevUserCode;
 
     //render only on key changes and not when say chat responses are streaming in
@@ -98,9 +98,9 @@ function render() {
         return;
     }
 
-    lastRenderedExerciseId = currentExerciseId;
+    lastRenderedExerciseId = activeLessonSlug;
     lastRenderedLanguageId = currentLanguageId;
-    lastRenderedCompletedIds = [...completedIds];
+    lastRenderedCompletedIds = [...completedSlugs];
     lastRenderedUserCode = currentUserCode;
 
     // If exercise or language changed (or initial load), update problem statement, language selector and editor
@@ -115,7 +115,7 @@ function render() {
         if (elements.description.desktop) elements.description.desktop.innerHTML = fullContent;
 
         //update nav
-        if (navActions) navActions.updateNavState(currentExerciseId);
+        if (navActions) navActions.updateNavState(activeLessonSlug);
 
         //highlight static blocks
         highlightStaticBlocks();
@@ -125,7 +125,7 @@ function render() {
         const languageExtension = getLanguageExtension(currentLanguageId);
 
         //initialize editor with user code (loadExerciseCode automatically saves prior context)
-        loadExerciseCode(currentExerciseId, currentLanguageId, currentUserCode, languageExtension, () => {
+        loadExerciseCode(activeLessonSlug, currentLanguageId, currentUserCode, languageExtension, () => {
             showPopup('Saved!');
         });
 
@@ -140,8 +140,8 @@ function render() {
     }
 
     //sidebar & progress (updates on exercise switch or completion changes)
-    renderSidebar(elements.sidebar.list, curriculum, currentExerciseId, completedIds);
-    renderProgressBar(elements.progressContainer, curriculum, currentExerciseId, completedIds);
+    renderSidebar(elements.sidebar.list, curriculum, activeLessonSlug, completedSlugs);
+    renderProgressBar(elements.progressContainer, curriculum, activeLessonSlug, completedSlugs);
 }
 
 
@@ -154,12 +154,12 @@ elements.runBtn.addEventListener('click', () => runner.run());
 //reset button
 if (elements.resetBtn) {
     resetEditorText(elements.resetBtn, ICONS.TRASH, () => {
-        const { currentExerciseId, currentLanguageId } = store.getState();
-        const currentEx = exercises.find(e => e.id === currentExerciseId);
+        const { activeLessonSlug, currentLanguageId } = store.getState();
+        const currentEx = exercises.find(e => e.id === activeLessonSlug);
         if (!currentEx) return;
         const exerciseVariant = getExerciseVariant(currentEx, currentLanguageId);
         setEditorCode(exerciseVariant.initialCode);
-        store.getState().saveUserCode(currentExerciseId, currentLanguageId, exerciseVariant.initialCode);
+        store.getState().saveUserCode(activeLessonSlug, currentLanguageId, exerciseVariant.initialCode);
         showPopup('Reset to starter code');
     });
 }
@@ -203,7 +203,7 @@ runner.init();
 
 //setup initial state
 const hashId = window.location.hash.slice(1);
-const storedExerciseId = store.getState().currentExerciseId;
+const storedExerciseId = store.getState().activeLessonSlug;
 
 if (hashId && exercises.some(e => e.id === hashId)) {
     store.getState().setCurrent(hashId);

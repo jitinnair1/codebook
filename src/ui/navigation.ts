@@ -15,8 +15,8 @@ export function initNavigation(
     navNext.innerHTML = ICONS.RIGHT_ARROW;
 
     function goToNext() {
-        const { currentExerciseId } = store.getState();
-        const idx = exercises.findIndex(e => e.id === currentExerciseId);
+        const { activeLessonSlug } = store.getState();
+        const idx = exercises.findIndex(e => e.id === activeLessonSlug);
         if (idx < exercises.length - 1) {
             window.location.hash = '#' + exercises[idx + 1].id;
             switchTabCallback('problem');
@@ -24,8 +24,8 @@ export function initNavigation(
     }
 
     function goToPrev() {
-        const { currentExerciseId } = store.getState();
-        const idx = exercises.findIndex(e => e.id === currentExerciseId);
+        const { activeLessonSlug } = store.getState();
+        const idx = exercises.findIndex(e => e.id === activeLessonSlug);
         if (idx > 0) {
             window.location.hash = '#' + exercises[idx - 1].id;
             switchTabCallback('problem');
@@ -36,8 +36,8 @@ export function initNavigation(
     navNext.addEventListener('click', goToNext);
 
     return {
-        updateNavState: (currentExerciseId: string) => {
-            const idx = exercises.findIndex(e => e.id === currentExerciseId);
+        updateNavState: (activeLessonSlug: string) => {
+            const idx = exercises.findIndex(e => e.id === activeLessonSlug);
             const hasPrev = idx > 0;
             const hasNext = idx < exercises.length - 1;
 

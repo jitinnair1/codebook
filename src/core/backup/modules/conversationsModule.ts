@@ -5,11 +5,11 @@ import { isValidExerciseId } from '../../../exercises/exercise-registry';
 export function exportConversations(state: AppState): ConversationsPayload {
   const conversations: SavedConversation[] = [];
 
-  for (const [exId, convList] of Object.entries(state.chatConversations || {})) {
+  for (const [slugKey, convList] of Object.entries(state.chatConversations || {})) {
     if (!Array.isArray(convList)) continue;
     for (const c of convList) {
       if (!c) continue;
-      const lessonSlug = String(c.exerciseId || exId || '').trim();
+      const lessonSlug = String(c.lessonSlug || slugKey || '').trim();
       if (!isValidExerciseId(lessonSlug)) continue;
 
       conversations.push({
@@ -60,7 +60,7 @@ function extractRawConversationList(raw: unknown): any[] {
           if (c && typeof c === 'object') {
             list.push({
               ...c,
-              lessonSlug: (c as any).lessonSlug || (c as any).exerciseId || slug,
+              lessonSlug: (c as any).lessonSlug || slug,
             });
           }
         }
@@ -109,7 +109,7 @@ export function sanitizeConversations(raw: unknown, current: AppState): Partial<
 
     const conv: ChatConversation = {
       id: String(item.id || `conv-${Date.now()}`),
-      exerciseId: lessonSlug,
+      lessonSlug,
       languageId: String(item.languageId || ''),
       title: String(item.title || 'Chat'),
       createdAt: typeof item.createdAt === 'number' ? item.createdAt : Date.now(),
@@ -158,7 +158,7 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
   const convMap = new Map<string, ChatConversation>();
 
   for (const loc of localList) {
-    if (loc?.id && isValidExerciseId(loc.exerciseId)) {
+    if (loc?.id && isValidExerciseId(loc.lessonSlug)) {
       convMap.set(loc.id, { ...loc });
     }
   }
@@ -173,7 +173,7 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
     if (!existing) {
       convMap.set(remId, {
         id: remId,
-        exerciseId: lessonSlug,
+        lessonSlug,
         languageId: String(rem.languageId || ''),
         title: String(rem.title || 'Chat'),
         createdAt: typeof rem.createdAt === 'number' ? rem.createdAt : Date.now(),
@@ -198,10 +198,10 @@ export function mergeConversations(local: AppState, remote: ConversationsPayload
   const mergedActive: Record<string, string> = { ...(local.activeConversationId || {}) };
 
   for (const conv of convMap.values()) {
-    if (!mergedConvs[conv.exerciseId]) {
-      mergedConvs[conv.exerciseId] = [];
+    if (!mergedConvs[conv.lessonSlug]) {
+      mergedConvs[conv.lessonSlug] = [];
     }
-    mergedConvs[conv.exerciseId].push(conv);
+    mergedConvs[conv.lessonSlug].push(conv);
   }
 
   for (const [lessonSlug, convs] of Object.entries(mergedConvs)) {
@@ -227,3 +227,4 @@ export const conversationsModule: BackupModule<ConversationsPayload> = {
   sanitizeData: (raw, current) => sanitizeConversations(raw, current),
   mergeData: (local, remote) => mergeConversations(local, remote),
 };
+

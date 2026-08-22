@@ -7,7 +7,7 @@ import { elements } from '../elements';
 
 export interface PromptContext {
   systemPrompt: string;
-  exerciseId: string;
+  lessonSlug: string;
   exerciseTitle: string;
   languageId: string;
 }
@@ -18,8 +18,8 @@ export interface PromptContext {
  * and pedagogical instructions.
  */
 export function buildSystemPrompt(): PromptContext {
-  const { currentExerciseId, currentLanguageId } = store.getState();
-  const currentEx = exercises.find(e => e.id === currentExerciseId);
+  const { activeLessonSlug, currentLanguageId } = store.getState();
+  const currentEx = exercises.find(e => e.id === activeLessonSlug);
 
   const exerciseTitle = currentEx?.title || 'Unknown Exercise';
   const exerciseDesc = currentEx?.description || '';
@@ -57,7 +57,7 @@ SECURITY & UNTRUSTED DATA GUARDRAILS:
 
 ACTIVE WORKSPACE CONTEXT:
 <context>
-<problem_statement id="${currentExerciseId}" title="${escapeXml(exerciseTitle)}" language="${currentLanguageId}">
+<problem_statement id="${activeLessonSlug}" title="${escapeXml(exerciseTitle)}" language="${currentLanguageId}">
 ${sanitizeContextBlock(exerciseDesc)}
 </problem_statement>
 
@@ -88,7 +88,7 @@ ${sanitizeContextBlock(consoleOutput || 'No output recorded yet (code has not be
 
   return {
     systemPrompt,
-    exerciseId: currentExerciseId,
+    lessonSlug: activeLessonSlug,
     exerciseTitle,
     languageId: currentLanguageId,
   };

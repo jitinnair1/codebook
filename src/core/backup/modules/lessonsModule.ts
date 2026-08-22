@@ -6,7 +6,7 @@ export function exportLessons(state: AppState): LessonsPayload {
   const lessonMap = new Map<string, { completed: boolean; code: Record<string, string> }>();
 
   // 1. Index completed lesson slugs
-  for (const id of state.completedIds || []) {
+  for (const id of state.completedSlugs || []) {
     if (!id || typeof id !== 'string') continue;
     const cleanSlug = id.trim();
     if (!isValidExerciseId(cleanSlug)) continue;
@@ -58,8 +58,8 @@ export function exportLessons(state: AppState): LessonsPayload {
   // Stable sort by lesson slug
   lessons.sort((a, b) => a.slug.localeCompare(b.slug));
 
-  const activeLessonSlug = isValidExerciseId(state.currentExerciseId)
-    ? state.currentExerciseId
+  const activeLessonSlug = isValidExerciseId(state.activeLessonSlug)
+    ? state.activeLessonSlug
     : exercises[0]?.id || '';
 
   return {
@@ -77,19 +77,17 @@ export function sanitizeLessons(raw: unknown, current: AppState): Partial<AppSta
   const payload = raw as any;
 
   const rawActiveLesson =
-    typeof payload.currentExerciseId === 'string' && isValidExerciseId(payload.currentExerciseId)
-      ? payload.currentExerciseId
-      : typeof payload.activeLessonSlug === 'string' && isValidExerciseId(payload.activeLessonSlug)
+    typeof payload.activeLessonSlug === 'string' && isValidExerciseId(payload.activeLessonSlug)
       ? payload.activeLessonSlug
-      : isValidExerciseId(current.currentExerciseId)
-      ? current.currentExerciseId
+      : isValidExerciseId(current.activeLessonSlug)
+      ? current.activeLessonSlug
       : exercises[0]?.id || '';
 
   const resolvedActiveLang =
-    typeof payload.currentLanguageId === 'string' && payload.currentLanguageId
-      ? payload.currentLanguageId
-      : typeof payload.activeLanguageId === 'string' && payload.activeLanguageId
+    typeof payload.activeLanguageId === 'string' && payload.activeLanguageId
       ? payload.activeLanguageId
+      : typeof payload.currentLanguageId === 'string' && payload.currentLanguageId
+      ? payload.currentLanguageId
       : current.currentLanguageId;
 
   const completedSet = new Set<string>();
@@ -121,8 +119,8 @@ export function sanitizeLessons(raw: unknown, current: AppState): Partial<AppSta
       }
     }
   } else {
-    if (Array.isArray(payload.completedIds)) {
-      for (const id of payload.completedIds) {
+    if (Array.isArray(payload.completedSlugs)) {
+      for (const id of payload.completedSlugs) {
         if (typeof id === 'string' && isValidExerciseId(id.trim())) {
           completedSet.add(id.trim());
         }
@@ -154,9 +152,9 @@ export function sanitizeLessons(raw: unknown, current: AppState): Partial<AppSta
   }
 
   return {
-    currentExerciseId: rawActiveLesson,
+    activeLessonSlug: rawActiveLesson,
     currentLanguageId: resolvedActiveLang,
-    completedIds: Array.from(completedSet),
+    completedSlugs: Array.from(completedSet),
     userCode,
     userCodeTimestamps,
   };
@@ -165,8 +163,8 @@ export function sanitizeLessons(raw: unknown, current: AppState): Partial<AppSta
 export function mergeLessons(local: AppState, remote: LessonsPayload | any): Partial<AppState> {
   const sanitizedRemote = sanitizeLessons(remote, local);
 
-  const localCompleted = Array.isArray(local.completedIds) ? local.completedIds : [];
-  const remoteCompleted = Array.isArray(sanitizedRemote.completedIds) ? sanitizedRemote.completedIds : [];
+  const localCompleted = Array.isArray(local.completedSlugs) ? local.completedSlugs : [];
+  const remoteCompleted = Array.isArray(sanitizedRemote.completedSlugs) ? sanitizedRemote.completedSlugs : [];
   const mergedCompleted = Array.from(new Set([...localCompleted, ...remoteCompleted]));
 
   const localCode = local.userCode || {};
@@ -191,10 +189,10 @@ export function mergeLessons(local: AppState, remote: LessonsPayload | any): Par
   }
 
   return {
-    completedIds: mergedCompleted,
+    completedSlugs: mergedCompleted,
     userCode: mergedUserCode,
     userCodeTimestamps: mergedTimestamps,
-    currentExerciseId: local.currentExerciseId || sanitizedRemote.currentExerciseId,
+    activeLessonSlug: local.activeLessonSlug || sanitizedRemote.activeLessonSlug,
     currentLanguageId: local.currentLanguageId || sanitizedRemote.currentLanguageId,
   };
 }

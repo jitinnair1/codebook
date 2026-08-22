@@ -10,12 +10,12 @@ import { sanitizeSettings } from '../backup/modules/settingsModule';
  */
 export function getInitialProgressState(): Partial<AppState> {
   return {
-    completedIds: [],
+    completedSlugs: [],
     userCode: {},
     userCodeTimestamps: {},
     chatConversations: {},
     activeConversationId: {},
-    currentExerciseId: exercises[0]?.id || '',
+    activeLessonSlug: exercises[0]?.id || '',
   };
 }
 

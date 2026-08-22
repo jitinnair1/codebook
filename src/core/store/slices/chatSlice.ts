@@ -6,12 +6,12 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
   chatConversations: {},
   activeConversationId: {},
 
-  createConversation: (exerciseId: string, languageId: string, title?: string) => {
-    const convs = get().chatConversations[exerciseId] || [];
+  createConversation: (lessonSlug: string, languageId: string, title?: string) => {
+    const convs = get().chatConversations[lessonSlug] || [];
     const id = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const newConv: ChatConversation = {
       id,
-      exerciseId,
+      lessonSlug,
       languageId,
       title: title || 'Chat',
       createdAt: Date.now(),
@@ -21,63 +21,63 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
     set({
       chatConversations: {
         ...get().chatConversations,
-        [exerciseId]: [...convs, newConv],
+        [lessonSlug]: [...convs, newConv],
       },
       activeConversationId: {
         ...get().activeConversationId,
-        [exerciseId]: id,
+        [lessonSlug]: id,
       },
     });
     return id;
   },
 
-  setActiveConversation: (exerciseId: string, conversationId: string) => {
-    const currentConvs = get().chatConversations[exerciseId] || [];
+  setActiveConversation: (lessonSlug: string, conversationId: string) => {
+    const currentConvs = get().chatConversations[lessonSlug] || [];
     const updatedConvs = currentConvs.map((c) =>
       c.id === conversationId ? { ...c, unread: false } : c
     );
     set({
       chatConversations: {
         ...get().chatConversations,
-        [exerciseId]: updatedConvs,
+        [lessonSlug]: updatedConvs,
       },
       activeConversationId: {
         ...get().activeConversationId,
-        [exerciseId]: conversationId,
+        [lessonSlug]: conversationId,
       },
     });
   },
 
-  updateConversationLanguage: (exerciseId: string, conversationId: string, languageId: string) => {
-    const currentConvs = get().chatConversations[exerciseId] || [];
+  updateConversationLanguage: (lessonSlug: string, conversationId: string, languageId: string) => {
+    const currentConvs = get().chatConversations[lessonSlug] || [];
     const updatedConvs = currentConvs.map((c) =>
       c.id === conversationId ? { ...c, languageId } : c
     );
     set({
       chatConversations: {
         ...get().chatConversations,
-        [exerciseId]: updatedConvs,
+        [lessonSlug]: updatedConvs,
       },
     });
   },
 
-  updateConversationTitle: (exerciseId: string, conversationId: string, title: string) => {
-    const currentConvs = get().chatConversations[exerciseId] || [];
+  updateConversationTitle: (lessonSlug: string, conversationId: string, title: string) => {
+    const currentConvs = get().chatConversations[lessonSlug] || [];
     const updatedConvs = currentConvs.map((c) =>
       c.id === conversationId ? { ...c, title } : c
     );
     set({
       chatConversations: {
         ...get().chatConversations,
-        [exerciseId]: updatedConvs,
+        [lessonSlug]: updatedConvs,
       },
     });
   },
 
-  deleteConversation: (exerciseId: string, conversationId: string) => {
-    const currentConvs = get().chatConversations[exerciseId] || [];
+  deleteConversation: (lessonSlug: string, conversationId: string) => {
+    const currentConvs = get().chatConversations[lessonSlug] || [];
     const updatedConvs = currentConvs.filter((c) => c.id !== conversationId);
-    const activeId = get().activeConversationId[exerciseId];
+    const activeId = get().activeConversationId[lessonSlug];
     let nextActiveId = activeId;
     if (activeId === conversationId) {
       nextActiveId = updatedConvs.length > 0 ? updatedConvs[updatedConvs.length - 1].id : '';
@@ -85,28 +85,28 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
     set({
       chatConversations: {
         ...get().chatConversations,
-        [exerciseId]: updatedConvs,
+        [lessonSlug]: updatedConvs,
       },
       activeConversationId: {
         ...get().activeConversationId,
-        [exerciseId]: nextActiveId,
+        [lessonSlug]: nextActiveId,
       },
     });
   },
 
-  getActiveConversation: (exerciseId: string) => {
+  getActiveConversation: (lessonSlug: string) => {
     const state = get();
-    const convs = state.chatConversations[exerciseId] || [];
-    const activeId = state.activeConversationId[exerciseId];
+    const convs = state.chatConversations[lessonSlug] || [];
+    const activeId = state.activeConversationId[lessonSlug];
     return convs.find((c) => c.id === activeId) || convs[0];
   },
 
-  addChatMessage: (exerciseId: string, message: ChatMessage, conversationId?: string) => {
+  addChatMessage: (lessonSlug: string, message: ChatMessage, conversationId?: string) => {
     const state = get();
-    let convs = [...(state.chatConversations[exerciseId] || [])];
-    let targetId = conversationId || state.activeConversationId[exerciseId];
+    let convs = [...(state.chatConversations[lessonSlug] || [])];
+    let targetId = conversationId || state.activeConversationId[lessonSlug];
     const isCurrentActive =
-      state.currentExerciseId === exerciseId && state.activeConversationId[exerciseId] === targetId;
+      state.activeLessonSlug === lessonSlug && state.activeConversationId[lessonSlug] === targetId;
     const isUnread = !isCurrentActive && message.role === 'assistant';
 
     let targetConv = convs.find((c) => c.id === targetId);
@@ -114,7 +114,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
       const newId = `conv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       targetConv = {
         id: newId,
-        exerciseId,
+        lessonSlug,
         languageId: state.currentLanguageId,
         title: 'Chat',
         createdAt: Date.now(),
@@ -138,28 +138,28 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
       });
     }
 
-    const existingActiveId = state.activeConversationId[exerciseId];
+    const existingActiveId = state.activeConversationId[lessonSlug];
     const nextActiveId = existingActiveId || targetId;
 
     set({
       chatConversations: {
         ...state.chatConversations,
-        [exerciseId]: convs,
+        [lessonSlug]: convs,
       },
       activeConversationId: {
         ...state.activeConversationId,
-        [exerciseId]: nextActiveId,
+        [lessonSlug]: nextActiveId,
       },
     });
   },
 
-  removeChatMessages: (exerciseId: string, messageIds: string[], conversationId?: string) => {
+  removeChatMessages: (lessonSlug: string, messageIds: string[], conversationId?: string) => {
     const state = get();
-    const targetId = conversationId || state.activeConversationId[exerciseId];
+    const targetId = conversationId || state.activeConversationId[lessonSlug];
     if (!targetId || !messageIds.length) return;
 
     const idSet = new Set(messageIds);
-    const convs = (state.chatConversations[exerciseId] || []).map((c) => {
+    const convs = (state.chatConversations[lessonSlug] || []).map((c) => {
       if (c.id === targetId) {
         return {
           ...c,
@@ -173,17 +173,17 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
     set({
       chatConversations: {
         ...state.chatConversations,
-        [exerciseId]: convs,
+        [lessonSlug]: convs,
       },
     });
   },
 
-  clearChatHistory: (exerciseId: string, conversationId?: string) => {
+  clearChatHistory: (lessonSlug: string, conversationId?: string) => {
     const state = get();
-    const targetId = conversationId || state.activeConversationId[exerciseId];
+    const targetId = conversationId || state.activeConversationId[lessonSlug];
     if (!targetId) return;
 
-    const convs = (state.chatConversations[exerciseId] || []).map((c) => {
+    const convs = (state.chatConversations[lessonSlug] || []).map((c) => {
       if (c.id === targetId) {
         return { ...c, messages: [], updatedAt: Date.now() };
       }
@@ -193,7 +193,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
     set({
       chatConversations: {
         ...state.chatConversations,
-        [exerciseId]: convs,
+        [lessonSlug]: convs,
       },
     });
   },

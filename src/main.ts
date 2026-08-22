@@ -227,21 +227,29 @@ ensureSettingsDecrypted(store)
 //immediately boot the active language runner
 const activeLangId = store.getState().currentLanguageId;
 if (activeLangId) {
-    loadLanguageRunner(activeLangId).catch((err) => {
-        console.error(`[main] Failed to load active language runner '${activeLangId}':`, err);
-    });
-}
+    loadLanguageRunner(activeLangId)
+        .then(async (activeRunnerInstance) => {
+            // Stage 1: Wait until the active runner is 100% ready before pre-warming other languages
+            if (activeRunnerInstance.whenReady) {
+                await activeRunnerInstance.whenReady();
+            } else {
+                await activeRunnerInstance.isReady();
+            }
 
-//pre-warm remaining enabled languages in browser idle time
-const scheduleBackgroundPrewarm = () => {
-    const currentLang = store.getState().currentLanguageId;
-    prewarmBackgroundLanguages(currentLang).catch(() => { });
-};
+            // Stage 2: Pre-warm remaining enabled languages sequentially in browser idle time
+            const scheduleBackgroundPrewarm = () => {
+                const currentLang = store.getState().currentLanguageId;
+                prewarmBackgroundLanguages(currentLang).catch(() => { });
+            };
 
-if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(scheduleBackgroundPrewarm, { timeout: 4000 });
-} else {
-    //for broswers that dont support requestIdleCallback
-    setTimeout(scheduleBackgroundPrewarm, 1200);
+            if ('requestIdleCallback' in window) {
+                (window as any).requestIdleCallback(scheduleBackgroundPrewarm, { timeout: 8000 });
+            } else {
+                setTimeout(scheduleBackgroundPrewarm, 2000);
+            }
+        })
+        .catch((err) => {
+            console.error(`[main] Failed to load active language runner '${activeLangId}':`, err);
+        });
 }
 
